@@ -138,7 +138,7 @@ ModGompertzEqn <- function(Amax,Amu,lag,x){(Amax*(exp(-exp((Amu*exp(1))/Amax*(la
 mod_gomp_lag_eqn <-  function(x, Amax,Amu,lag){(Amax*(exp(-exp((Amu*exp(1))/Amax*(Lag-x)+1))))
   }
 
-mod_gomp_lag_eqn_test <-  function(x, Amax = 1000, Amu  = 0.005, Lag = 100 ){(Amax*(exp(-exp((Amu*exp(1))/Amax*(Lag-x)+1))))
+mod_gomp_lag_eqn_test <-  function(x, Amax = 1000, Amu  = 0.5, Lag = 1000 ){(Amax*(exp(-exp((Amu*exp(1))/Amax*(Lag-x)+1))))
   }
 
 ggplot(data.frame(x = c(1, 3000)), aes(x=x)) + 
@@ -215,7 +215,7 @@ Upload representative colony images to your RStudio.cloud.
 Add representative images of your colony growth over time to your .Rmd.
 Will work with .JPG and .png; not sure about other graphic formats.
 ```{r example colonies, fig.align = 'centre', out.width='50%', out.height='70%'}
-knitr::include_graphics(file.path("202101262155.jpg"))
+#knitr::include_graphics(file.path("202101262155.jpg"))
 ```
 
 
