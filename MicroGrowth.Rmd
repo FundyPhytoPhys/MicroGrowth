@@ -1,0 +1,450 @@
+---
+title: "MicroColonyGrowth"
+author: "Emily Drew Johnson"
+date: "`r format(Sys.Date())`"
+output:
+  html_document:
+    code_folding: hide
+    df_print: paged
+---
+# Author's Roles
+Emily Drew Johnson analyzed results, plotted data, fit growth curves and generated the report.
+
+# Acknowledgements
+DA Campbell wrote code for analyses and plotting.  
+L Barney conducted experiment.
+This report is based upon collective data accumulated by the BIOL2201 Class, 2021, Mount Allison University.
+
+# Run This Chunk First
+Additional libraries needed to run the project.
+```{r load libraries, echo = FALSE, message = FALSE}
+#tidyverse.org
+library(tidyverse)
+#https://googlesheets4.tidyverse.org/
+library(googledrive)
+library(googlesheets4)
+library(lubridate)
+library(minpack.lm)
+library(broom)
+library(knitr)
+```
+
+
+# Introduction
+Microbes grow; Mould is (sort of) a microbe. 
+We will import microbial growth data, tidy it, plot growth data vs. time and fit models of microbial growth to the data.
+
+## Some models for microbial growth
+Each model defines a pattern of growth.
+Linear: microbial population increases by a constant amount per unit time.
+Two parameters; intercept (P0) and linear slope
+Pt = ehours*linearslope + P0
+
+Exponential: microbial population increases by a constant proportion per unit time.
+Two parameters; intercept (P0) and exponential growth rate constant
+Pt = P0 *(exp(exprate*ehours))
+
+Exponential rise towards a plateau: the gap between a maximum population and the current microbial population decreases by a constant proportion per unit time.
+Three parameters; intercept (P0), exponential growth rate constant and plateau
+Pt = Max - ((Max-Intercept)*exp(x*-mu)
+
+Logistic: microbial population initially increases exponentially but slows as population approaches a plateau, Pmax.
+Three parameters; intercept (P0), exponential rate constant and maximum population Pmax.
+Pt= {Pmax e^µt }/{Pmax + P0 (e^µt- 1)}
+
+```{r example plots, message = FALSE}
+linear_eqn_test <- function(x, slope = 0.005, Intercept = 5){x*slope + Intercept
+}
+ggplot(data.frame(x=c(1, 3000)), aes(x=x)) + 
+  stat_function(fun = linear_eqn_test) +
+  labs(title = "Linear") +
+  theme_bw()
+
+exp_rise_eqn_test <- function(x, mu = 0.005, Intercept = 5){Intercept *exp(x*mu)
+}
+ggplot(data.frame(x=c(1, 3000)), aes(x=x)) + 
+  stat_function(fun = exp_rise_eqn_test) +
+  labs(title = "Exponential") +
+  theme_bw()
+
+exp_rise_plateau_eqn_test <- function(x, mu = 0.005, Intercept = 0.5, Max = 10000){Max - ((Max-Intercept)*exp(x*-mu))
+}
+ggplot(data.frame(x=c(1, 3000)), aes(x=x)) + 
+  stat_function(fun = exp_rise_plateau_eqn_test) +
+  labs(title = "Exponential towards Plateau") +
+  theme_bw()
+
+logistic_rise_eqn_test <- function(x, mu = 0.005, Intercept = 5, Max = 10000){(Max*Intercept*exp(mu*x))/(Max + (Intercept*(exp(mu*x)-1)))
+}
+
+ggplot(data.frame(x = c(1, 3000)), aes(x=x)) + 
+  stat_function(fun = logistic_rise_eqn_test) +
+  labs(title = "Logistic") +
+  theme_bw()
+
+```
+
+# Materials and Methods 
+We grew mould on slices of bread under wrapping in the dark (or in the light, or at low and high temperature...).
+
+Set your initials code for your MicroColonyGrowth data.
+```{r initials, message = FALSE}
+MyInitials <- c("AnMa")
+```
+
+
+## Import data. 
+The import function may open a Google log in to get an authorization code in a separate browser window. Copy/paste the authorization code into the 'Console' window below.
+See next chunk for manual alternative if needed; download .csv from GoogleSheet, then upload the .csv to RStudio.cloud.
+
+
+```{r import data from googlesheet, message = FALSE}
+gs4_deauth()
+ColonyData <- read_sheet("https://docs.google.com/spreadsheets/d/1DWyASxmu5DURkcegWM0Sykp9x3F3eQfMxdz0VYJ9mOI/edit?usp=sharing")
+
+ColonyData
+```
+Alternative
+Doug: Manually Download Data from Googlesheets as .csv.
+Doug: Manually Upload to RStudio.cloud.
+Read in .csv into ColonyData object.min
+```{r read local data, message = FALSE}
+# ColonyData <- read_csv("MicroColonyData2021.csv", col_names = TRUE)
+# ColonyData
+```
+
+
+Error correction chunk if some data columns have converted to 'list' format upon import by 'plucking' the first entry in each cell in each column and converting to numeric format.
+Could make more sophisticated.
+```{r extract numeric from list}
+# ColonyData <- ColonyData %>%
+#   mutate (YYYYMMDDHHMM = as.numeric(as.character(pluck(col1mm2, 1))),
+#           col1mm2_test = as.numeric(as.character(pluck(col1mm2, 1))),
+#           col2mm2_test = as.numeric(as.character(pluck(col2mm2, 1))),
+#           col3mm2_test = as.numeric(as.character(pluck(col3mm2, 1))))
+# 
+# ColonyData
+```
+
+Filter the class data to include only 'MyData' (defined by 'MyInitials' set above). 
+Convert the data to long format for analyses.
+Convert the YYYYMMDDHHMM data column to a formatted datetime column,
+Generate a numeric ehours column for elapsed time.
+```{r long data, message = FALSE}
+#filter data,long format for analyses
+MyData <- ColonyData %>%
+  filter(Initials_4letter == MyInitials) %>%
+  pivot_longer(cols = colnames(ColonyData[5:7]), names_to = 'Colonies', values_to = "Areamm2") %>%
+  mutate(Areamm2 = as.numeric(Areamm2))
+
+#convert YYYYMMDDHHMM to datetime format
+MyData <- MyData %>%
+  group_by(Substrate, Treatment) %>%
+  mutate(YYYYMMDDHHMM = ymd_hm(YYYYMMDDHHMM)) %>%
+  mutate(ehours = as.numeric(((YYYYMMDDHHMM - min(YYYYMMDDHHMM, na.rm = TRUE)))/3600))
+```
+
+
+# Results  
+Upload representative colony images to your RStudio.cloud.
+Add representative images of your colony growth over time to your .Rmd.
+Will work with .JPG and .png; not sure about other graphic formats.
+```{r example colonies, fig.align = 'centre', out.width='50%', out.height='70%'}
+knitr::include_graphics(file.path("202101262155.jpg"))
+```
+
+
+## Example of Mould Colony on Naan, 202101240946.JPG
+
+## Plot the data with a separate facet for each colony.
+Or, plot the data with all colonies under a common combination of substrate and treatment in a single panel.
+```{r ColonyPlot, message = FALSE}
+#set Y axis limit range
+#YLIM = c(0,max(MyData$Areamm2, na.rm = TRUE))
+
+MyData %>%
+  ggplot() +
+  geom_point(aes(x = ehours, y = Areamm2, colour = Colonies)) +
+  facet_grid(cols = vars(Treatment), rows = vars(Substrate)) +
+  theme_bw() +
+  labs(title = "Colony Growth",
+       subtitle = MyInitials)
+
+MyData %>%
+  ggplot() +
+  geom_point(aes(x = ehours, y = Areamm2, colour = Colonies)) +
+  facet_grid(cols = vars(Colonies), rows = vars(Substrate, Treatment)) +
+  theme_bw() +
+  labs(title = "Colony Growth",
+       subtitle = MyInitials)
+
+
+```
+
+# Colony Size vs. Hours Elapsed since First Measure.
+
+Plot the ln(Areamm2) to check whether growth follows an exponential pattern
+Default log in R is log base E, not log base 10.
+```{r ln data plot}
+MyData %>%
+  ggplot() +
+  geom_point(aes(x = ehours, y = log(Areamm2), colour = Colonies)) +
+  facet_grid(cols = vars(Colonies), rows = vars(Substrate, Treatment)) +
+  theme_bw() +
+  labs(title = "Colony Growth",
+       subtitle = MyInitials)
+
+```
+
+
+## My Favourite Caption
+
+## Let R find the best fit parameters for models of the data.
+Create R function for linear equation.
+
+```{r linear function, message = FALSE}
+#define a linear equation as a function.
+#x will be taken from 'ehours' when we run the fit.
+linear_eqn <- function(x, m, intercept){(x * m) + intercept
+}
+```
+
+```{r set starting parameters for linear model, message = FALSE}
+#define starting, lower, and upper bounds for fit parameters to constrain linear equations
+linear_eqn_start <- list(m = 1, intercept = min(MyData$Areamm2, na.rm = TRUE))
+linear_eqn_lower <- c(0,0)
+
+linear_eqn_upper <- c(max(MyData$Areamm2, na.rm = TRUE), max(MyData$Areamm2, na.rm = TRUE))
+```
+
+Create R function for exponential equation.
+```{r exponential function, message = FALSE}
+#define an exponential equation as a function.
+#x will be taken from 'ehours' when we run the fit.
+exp_eqn <- function(x, mu, intercept){intercept * exp(x*mu)
+}
+```
+
+```{r set starting parameters for exponential model, message = FALSE}
+#define starting, lower, and upper bounds for fit parameters to constrain linear equations
+exp_eqn_start <- list(mu = 0.1, intercept = min(MyData$Areamm2, na.rm = TRUE))
+exp_eqn_lower <- c(0,0)
+
+exp_eqn_upper <- c(1, max(MyData$Areamm2, na.rm = TRUE))
+```
+
+Create R function for logistic equation.
+```{r logistic function, message = FALSE}
+#define a logistic equation as a function.
+#x will be taken from 'ehours' when we run the fit.
+logistic_eqn <- function(x, pmax, mu, intercept){(pmax*intercept*exp(mu*x))/(pmax + (intercept*(exp(mu*x)-1)))
+}
+```
+
+
+```{r set starting parameters for logistic model, message = FALSE}
+#define starting, lower, and upper bounds for fit parameters to constrain logistic fit
+logistic_eqn_start<-list(pmax = max(MyData$Areamm2, na.rm = TRUE), mu = 0.05, intercept = min(MyData$Areamm2, na.rm = TRUE))
+
+logistic_eqn_lower<-c((max(MyData$Areamm2, na.rm = TRUE) * 0.5),0.001,((min(MyData$Areamm2, na.rm = TRUE) * 0.1)))
+
+logistic_eqn_upper<-c((max(MyData$Areamm2, na.rm = TRUE) * 2),1,((min(MyData$Areamm2, na.rm = TRUE) * 4)))
+```
+
+
+Each user measured multiple colonies, possibly on multiple substrates with multiple treatments.
+We create a 'nested' data frame where all data in columns YYYYMMDDHHMM, Areamm2, ehours, from a single user, a single colony, on a single substrate, with a single treatment are 'nested' together for later fitting of growth curves.
+```{r nest data for curve fitting, message = FALSE}
+MyData_nest <- as_tibble(MyData) %>%
+  #filter(Treatment != "Hot") %>%
+  nest(data = c(YYYYMMDDHHMM, Areamm2, ehours, Temp_C))
+```
+
+## Fit and plot treatment colony specific linear growth trajectories using nest purrr:map & broom::augment
+This chunk uses complicated code from the 'Tidyverse' package.
+R will iteratively vary the parameters of the fitting equations to minimize the residuals (discrepancies) between the data points (nested) and the points predicted by the model with a given set of parameters.
+```{r colony linear growth, message = FALSE}
+
+colony_lin  <- MyData_nest %>% 
+  mutate(
+  fit = map(data, possibly(~nlsLM(Areamm2 ~ linear_eqn(x = ehours, m, intercept), data = .x, start = linear_eqn_start, lower = linear_eqn_lower, upper = linear_eqn_upper), otherwise = NULL)),
+  predict = map(fit, possibly(augment, otherwise = NULL)),
+  tidied =  map(fit, possibly(tidy, otherwise = NULL)),
+  param = map(fit, possibly(glance, otherwise = NULL))
+  )
+
+colony_lin %>%
+  unnest(predict)  %>% 
+  ggplot() +  
+  geom_line(aes(x = ehours, y = .fitted), size = 0.5) +
+geom_ribbon(aes(x = ehours, ymin = (.fitted - .resid), ymax = (.fitted + .resid), alpha = 0.1),show.legend = FALSE) +
+  facet_grid(cols = vars(Colonies), rows = vars(Treatment, Substrate)) +
+  geom_point(data = MyData, aes(x = ehours, y = Areamm2), colour = "green") +
+  theme_bw() +
+  labs(y = ".fitted Areamm^2",
+       title = "Colony Growth, Linear Fits",
+       subtitle = MyInitials,
+       caption = "Linear line, residuals grey ribbon")
+
+#parameters of colony specific linear fits
+colony_lin %>% 
+  unnest(tidied) %>%
+  select(-c(data, fit, predict, param)) %>%
+  mutate_if(is.numeric, round, digits = 2)
+```
+
+## Fit and plot treatment colony specific exponential growth trajectories using nest purrr:map & broom::augment
+```{r colony exponential growth, message = FALSE}
+
+colony_exp <- MyData_nest %>% 
+  mutate(
+  fit = map(data, possibly(~nlsLM(Areamm2 ~ exp_eqn(x = ehours, mu, intercept), data = .x, start = exp_eqn_start, lower = exp_eqn_lower, upper = exp_eqn_upper), otherwise = NULL)),
+  predict = map(fit, possibly(augment, otherwise = NULL)),
+  tidied =  map(fit, possibly(tidy, otherwise = NULL)),
+  param = map(fit,possibly(glance, otherwise = NULL))
+  )
+
+colony_exp %>%
+  unnest(predict)  %>% 
+  ggplot() +  
+  geom_line(aes(x = ehours, y = .fitted), size = 0.5) +
+geom_ribbon(aes(x = ehours, ymin = (.fitted - .resid), ymax = (.fitted + .resid), alpha = 0.1),show.legend = FALSE) +
+  facet_grid(cols = vars(Colonies), rows = vars(Treatment, Substrate)) +
+  geom_point(data = MyData, aes(x = ehours, y = Areamm2), colour = "green") +
+  theme_bw() +
+  labs(y = ".fitted Areamm^2",
+       title = "Colony Growth, Exponential Fits",
+       subtitle = MyInitials,
+       caption = "Exponential line, residuals grey ribbon")
+
+#parameters of colony specific exponential fits
+colony_exp %>% 
+  unnest(tidied) %>%
+  select(-c(data, fit, predict, param)) %>%
+  mutate_if(is.numeric, round, digits = 2)
+```
+
+
+## Fit and plot treatment colony specific logistic growth trajectories using nest purrr:map & broom::augment
+```{r colony logistic growth, message = FALSE}
+colony_log <- MyData_nest  %>% 
+  #filter(Colonies == "col1mm2") %>%
+  mutate(
+  fit = map(data, possibly(~nlsLM(Areamm2 ~ logistic_eqn(x = ehours, pmax, mu, intercept), data = .x, start = logistic_eqn_start, lower = logistic_eqn_lower, upper = logistic_eqn_upper), otherwise = NULL)),
+  predict = map(fit, possibly(augment, otherwise = NULL)),
+  tidied =  map(fit, possibly(tidy, otherwise = NULL)),
+  param = map(fit,possibly(glance, otherwise = NULL))
+  )
+
+colony_log %>% 
+  unnest(predict) %>%
+  ggplot() +  
+  geom_line(aes(x = ehours, y = .fitted), size = 0.5) +
+geom_ribbon(aes(x = ehours, ymin = (.fitted - .resid), ymax = (.fitted + .resid), alpha = 0.1),show.legend = FALSE) +
+  geom_point(data = MyData, aes(x = ehours, y = Areamm2), colour = "green") +
+  facet_grid(cols = vars(Colonies), rows = vars(Treatment, Substrate)) +
+  theme_bw() +
+  labs(y = ".fitted Areamm^2",
+       title = "Colony Growth, Logistic Fits",
+       subtitle = MyInitials,
+       caption = "Logistic line, residuals grey ribbon")
+
+
+#parameters of colony specific logistic fits
+colony_log %>%
+  unnest(tidied) %>%
+  select(-c(data, fit, predict, param)) %>%
+  mutate_if(is.numeric, round, digits = 2)
+```
+
+
+## Compare Linear, Exponential, and Logistic Models using ANOVA
+Doug to implement if feasible;  too slow, too long
+```{r}
+
+```
+
+
+## Organize all class data
+```{r classdata, message = FALSE}
+ClassData <- ColonyData %>%
+  pivot_longer(cols = colnames(ColonyData[5:7]), names_to = 'Colonies', values_to = "Areamm2") %>%
+  filter(Areamm2 != "NULL") %>%
+  mutate(Areamm2 = as.numeric(Areamm2)) %>%
+  mutate(YYYYMMDDHHMM = ymd_hm(YYYYMMDDHHMM)) %>%
+  group_by(Initials_4letter) %>%
+  mutate(ehours = as.numeric((YYYYMMDDHHMM - min(YYYYMMDDHHMM, na.rm = TRUE))/3600)) %>% 
+  filter(ehours < 320)
+```
+
+## Plot class data facet by Substrate and Treatment
+```{r classdataplot, message = FALSE}
+ClassDataPlot <- ClassData %>%
+  ggplot() +
+  geom_point(aes(x = ehours, y = Areamm2, colour = Initials_4letter)) +
+  facet_grid(rows = vars(Substrate), cols = vars(Treatment)) +
+  theme_bw() +
+  labs(title = "Class Colony Growth")
+
+ ClassDataPlot 
+
+```
+
+# Exploratory plot of all combinations of substrate and treatment run by the class.
+
+```{r nest class data by substrate and treatment, message = FALSE}
+Class_nest <- as_tibble(ClassData) %>%
+  nest(data = c(Temp_C, Initials_4letter, YYYYMMDDHHMM, Areamm2, ehours, Colonies))
+```
+
+## Fit logistic model to pooled class data, nested by Substrate and Treatment
+Some data 'nests' have too little data to fit or too little variation in the data to support a valid fit.  The range of minimum and maximum values across different Substrate/Treatment 'nests' also makes it difficult to assign starting, minimum and maximum values for parameters.
+Doug added 'possibly' as an error catch that allows the fit of nests to proceed even if one nest is unable to be fit.
+```{r log model to class, message = FALSE}
+#define starting values for fit parameters to constrain logistic fit
+#logistic_eqn_start<-list(pmax = max(ClassData$Areamm2, na.rm = TRUE), mu = 0.05, intercept = min(ClassData$Areamm2, na.rm = TRUE))
+
+logistic_eqn_start<-list(pmax = 300, mu = 0.05, intercept = 1)
+
+#define lower, and upper bounds for fit parameters to constrain logistic fit
+#logistic_eqn_lower<-c(50,0.001,1)
+
+#logistic_eqn_upper<-c(1000,1,20)
+
+#fit a pooled model using the logistic equation nested by temp_C
+
+Class_log <- Class_nest %>%
+  mutate(
+   fit = map(data, possibly(~nlsLM(Areamm2 ~ logistic_eqn(x = ehours, pmax, mu, intercept), data = .x, start = logistic_eqn_start), otherwise = NULL)),
+  predict = map(fit, possibly(augment, otherwise = NULL)),
+  tidied =  map(fit, possibly(tidy, otherwise = NULL)),
+  param = map(fit, possibly(glance, otherwise = NULL))
+  )
+
+# , lower = logistic_eqn_lower, upper = logistic_eqn_upper
+
+Class_log %>%
+  unnest(predict) %>%
+  ggplot() +
+  geom_point(aes(x = ehours, y = Areamm2)) +
+  geom_line(aes(x = ehours, y = .fitted), size = 0.5) +
+geom_ribbon(aes(x = ehours, ymin = (.fitted - .resid), ymax = (.fitted + .resid), alpha = 0.1),show.legend = FALSE) +
+  facet_grid(cols = vars(Substrate), rows = vars(Treatment)) +
+  theme_bw() +
+  labs(y = "Areamm^2",
+       title = "Colony Growth, Logistic Fits",
+       caption = "Logistic line, residuals grey ribbon, points data")
+
+#parameters of colony specific logistic fits
+Class_log %>%
+  unnest(tidied) %>%
+  select(-c(data, fit, predict, param)) %>%
+  mutate_if(is.numeric, round, digits = 2)
+```
+
+
+# Discussion
+Emily's passion for mould led her to an illustrious career as a mycologist or baker. 
+Emily's mould colony growth was best approximated using an exponential curve fit because her data had not reached a plateau at the time of analyses.
+
+
