@@ -134,7 +134,7 @@ ModGompertzEqn <- function(Amax,Amu,lag,x){(Amax*(exp(-exp((Amu*exp(1))/Amax*(la
 
 ### Modified Gompertz Fit with Lag example
 ```{r mod gompertz example}
-
+#natural log(RFU/min(RFU)); works, but confusing
 mod_gomp_lag_eqn <-  function(x, Amax,Amu,lag){(Amax*(exp(-exp((Amu*exp(1))/Amax*(Lag-x)+1))))
   }
 
