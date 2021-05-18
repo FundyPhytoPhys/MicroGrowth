@@ -1,22 +1,20 @@
 ---
-title: "MicroColonyGrowth"
-author: "Emily Drew Johnson"
+title: "MicroGrowth"
+author: "Douglas A. Campbell, Maximilian Berthold"
 date: "`r format(Sys.Date())`"
 output:
   html_document:
     code_folding: hide
     df_print: paged
+    keep_md: true
+bibliography: MicrobialGrowthFitting.bib    
 ---
-# Author's Roles
-Emily Drew Johnson analyzed results, plotted data, fit growth curves and generated the report.
-
 # Acknowledgements
-DA Campbell wrote code for analyses and plotting.  
-L Barney conducted experiment.
-This report is based upon collective data accumulated by the BIOL2201 Class, 2021, Mount Allison University.
+This report uses test data accumulated by the BIOL2201 Class, 2021, Mount Allison University under the guidance of L. Barney.
 
 # Run This Chunk First
 Additional libraries needed to run the project.
+'googledrive' and 'googlesheets4' manage access to googlesheets, used for MetaData catalogs
 ```{r load libraries, echo = FALSE, message = FALSE}
 #tidyverse.org
 library(tidyverse)
@@ -29,63 +27,130 @@ library(broom)
 library(knitr)
 ```
 
-
 # Introduction
-Microbes grow; Mould is (sort of) a microbe. 
+Microbes grow.
 We will import microbial growth data, tidy it, plot growth data vs. time and fit models of microbial growth to the data.
 
-## Some models for microbial growth
-Each model defines a pattern of growth.
-Linear: microbial population increases by a constant amount per unit time.
-Two parameters; intercept (P0) and linear slope
-Pt = ehours*linearslope + P0
+# Some possible models for microbial growth
+Each model defines a pattern of growth.  
 
-Exponential: microbial population increases by a constant proportion per unit time.
-Two parameters; intercept (P0) and exponential growth rate constant
-Pt = P0 *(exp(exprate*ehours))
+## Linear
+Microbial population increases by a constant amount per unit time.
+(Pseudo)Linear growth is sometimes observed when a constant input of a resource (ex. light) is shared among an increasing number of cells.  
+The population adds a constant number of cells per unit time, but each cell is growing more slowly with each time increment as its share of the constant resource input decreases.  
 
-Exponential rise towards a plateau: the gap between a maximum population and the current microbial population decreases by a constant proportion per unit time.
-Three parameters; intercept (P0), exponential growth rate constant and plateau
-Pt = Max - ((Max-Intercept)*exp(x*-mu)
+Two fitted parameters; intercept (P0) and linearslope (m)
+Pt = ehours*m + P0
 
-Logistic: microbial population initially increases exponentially but slows as population approaches a plateau, Pmax.
-Three parameters; intercept (P0), exponential rate constant and maximum population Pmax.
-Pt= {Pmax e^µt }/{Pmax + P0 (e^µt- 1)}
-
-```{r example plots, message = FALSE}
-linear_eqn_test <- function(x, slope = 0.005, Intercept = 5){x*slope + Intercept
+### Linear Example
+```{r linear example}
+linear_eqn <- function(x, m, Intercept){(x * m) + Intercept
 }
+
+linear_eqn_test <- function(x, m = 0.005, Intercept = 5){x*m + Intercept
+}
+
 ggplot(data.frame(x=c(1, 3000)), aes(x=x)) + 
   stat_function(fun = linear_eqn_test) +
-  labs(title = "Linear") +
+  labs(title = "Linear example") +
   theme_bw()
+```
 
+
+## Exponential  
+Microbial population increases by a constant proportion per unit time.
+Exponential growth is observed when microbial cell replication is not resource limited, but is rather limited by intrinsic processes like nutrient uptake rates or DNA replication rate.
+
+Two fitted parameters; intercept (P0) and exponential growth rate constant (mu, µ)
+Pt = P0 *(exp(mu*ehours))
+
+### Exponential Example
+```{r exponential example}
+
+exp_rise_eqn <- function(x, mu, Intercept){Intercept *exp(x*mu)
+}
+  
 exp_rise_eqn_test <- function(x, mu = 0.005, Intercept = 5){Intercept *exp(x*mu)
 }
 ggplot(data.frame(x=c(1, 3000)), aes(x=x)) + 
   stat_function(fun = exp_rise_eqn_test) +
-  labs(title = "Exponential") +
+  labs(title = "Exponential example") +
   theme_bw()
+```
 
-exp_rise_plateau_eqn_test <- function(x, mu = 0.005, Intercept = 0.5, Max = 10000){Max - ((Max-Intercept)*exp(x*-mu))
+
+## Exponential rise towards a plateau
+The gap between a maximum population and the current microbial population decreases by a constant proportion per unit time.
+Three parameters; intercept (P0), exponential growth rate constant (mu) and plateau (Max)
+Pt = Max - ((Max-Intercept)*exp(x*-mu)
+
+### Exponential rise towards a plateau example
+```{r rise to plateau example}
+exp_rise_plat_eqn <- function(x, mu = 0.005, Intercept){Max - ((Max-Intercept)*exp(x*-mu))
+}
+
+exp_rise_plat_eqn_test <- function(x, mu = 0.005, Intercept = 0.5, Max = 1000){Max - ((Max-Intercept)*exp(x*-mu))
 }
 ggplot(data.frame(x=c(1, 3000)), aes(x=x)) + 
-  stat_function(fun = exp_rise_plateau_eqn_test) +
-  labs(title = "Exponential towards Plateau") +
-  theme_bw()
-
-logistic_rise_eqn_test <- function(x, mu = 0.005, Intercept = 5, Max = 10000){(Max*Intercept*exp(mu*x))/(Max + (Intercept*(exp(mu*x)-1)))
-}
-
-ggplot(data.frame(x = c(1, 3000)), aes(x=x)) + 
-  stat_function(fun = logistic_rise_eqn_test) +
-  labs(title = "Logistic") +
+  stat_function(fun = exp_rise_plat_eqn_test) +
+  labs(title = "Exponential Rise towards Plateau example") +
   theme_bw()
 
 ```
 
+
+## Logistic
+Microbial population initially increases exponentially but slows as population approaches a plateau, Pmax.
+
+Pmax is maximum population tenable under the prevailing conditions, sometimes termed the carrying capacity.
+mu dominates the early part of the rise, transitioning towards an asymptote towards Pmax.
+Three parameters; intercept (P0), exponential rate constant (mu) and maximum population Pmax.
+There are multiple equivalent formulations of the logistic equation.
+Pt= {Pmax e^µt }/{Pmax + P0 (e^µt- 1)}
+
+### Logistic example
+```{r logistic example}
+logistic_eqn <- function(x, mu, Intercept, Max){(Max*Intercept*exp(mu*x))/(Max + (Intercept*(exp(mu*x)-1)))
+}
+
+logistic_eqn_test <- function(x, mu = 0.005, Intercept = 5, Max = 10000){(Max*Intercept*exp(mu*x))/(Max + (Intercept*(exp(mu*x)-1)))
+}
+
+ggplot(data.frame(x = c(1, 3000)), aes(x=x)) + 
+  stat_function(fun = logistic_eqn_test) +
+  labs(title = "Logistic example") +
+  theme_bw()
+
+```
+
+
+## Modified Gompertz Fit with Lag
+Gompertz equations [@zwieteringModelingBacterialGrowth1990] have shapes similar to Logistic fits but are more readily modified to include 'lag' as a parameter for an initial time period over which cell count does not (measurably) increase.
+'lag' may be a true biological lag representing cellular acclimation to new growth conditions, and/or may result from cell counts below the level of instrumental resolution, giving no detectable growth.
+
+Pt = ModGompertzEqn <- (Amax*(exp(-exp((Amu*exp(1))/Amax*(lag-x)+1))))
+
+ModGompertzEqn <- function(Amax,Amu,lag,x){(Amax*(exp(-exp((Amu*exp(1))/Amax*(lag-x)+1))))}
+
+### Modified Gompertz Fit with Lag example
+```{r mod gompertz example}
+
+mod_gomp_lag_eqn <-  function(x, Amax,Amu,lag){(Amax*(exp(-exp((Amu*exp(1))/Amax*(Lag-x)+1))))
+  }
+
+mod_gomp_lag_eqn_test <-  function(x, Amax = 1000, Amu  = 0.005, Lag = 100 ){(Amax*(exp(-exp((Amu*exp(1))/Amax*(Lag-x)+1))))
+  }
+
+ggplot(data.frame(x = c(1, 3000)), aes(x=x)) + 
+  stat_function(fun = mod_gomp_lag_eqn_test) +
+  labs(title = "Modified Gompertz with Lag example") +
+  theme_bw()
+```
+
+# XXXXXXXXX
+
 # Materials and Methods 
-We grew mould on slices of bread under wrapping in the dark (or in the light, or at low and high temperature...).
+We grew cultures.
 
 Set your initials code for your MicroColonyGrowth data.
 ```{r initials, message = FALSE}
@@ -443,8 +508,7 @@ Class_log %>%
 ```
 
 
-# Discussion
-Emily's passion for mould led her to an illustrious career as a mycologist or baker. 
-Emily's mould colony growth was best approximated using an exponential curve fit because her data had not reached a plateau at the time of analyses.
+# Bibliography
+
 
 
