@@ -17,6 +17,43 @@ This report uses test data accumulated by the BIOL2201 Class, 2021, Mount Alliso
 ```{r global_options}
 knitr::opts_chunk$set(fig.path='Figs/')
 ```
+
+Set variables for project
+```{r project data}
+# Project <- "salinity_growth"
+# FileIDSingle <- "Ab"
+# Replic <- "AllSal"
+# DataFolder <- "ProcessData"
+# 
+# #grouping variables for rows & columns, and for nesting for fitting
+# RowVar <- "salinity" #expected salinity
+# RowVar2 <- "CalcSal"
+# ColVar <- "strain"
+# NestVar <- "par_ue"
+# NestVarII <- "id"
+# 
+# #filtering variables
+# ChlAb = c("680", "720", "750")
+# Wavelength_nm <- c("680min720", "680min750", "680", "720", "750")
+# Par_ue = 300
+# Strains <- c("CZS25K")
+# StartDate <- c("20200916", "20200923", "20201013")
+# TissueTreated = FALSE
+# Media = "BG11+Na2CO3"
+# SourceSal = "4"
+# StopHours = 200
+# 
+# #fitting variable
+# FitVar = "CorrOD"
+
+
+#Set your initials code for your MicroColonyGrowth data.
+MyInitials <- c("AnMa")
+
+ColonyGoogleSheet <- "https://docs.google.com/spreadsheets/d/1DWyASxmu5DURkcegWM0Sykp9x3F3eQfMxdz0VYJ9mOI/edit?usp=sharing"
+```
+
+
 Additional libraries needed to run the project.
 'googledrive' and 'googlesheets4' manage access to googlesheets, used for MetaData catalogs
 ```{r load libraries, echo = FALSE, message = FALSE}
@@ -29,6 +66,9 @@ library(lubridate)
 library(minpack.lm)
 library(broom)
 library(knitr)
+library(stringr)
+library(nlstools)
+library(nlsMicrobio)
 ```
 
 # Introduction
@@ -47,6 +87,8 @@ Two fitted parameters; Intercept (P0) and linear slope (m)
 Pt = ehours*m + P0
 
 ### Linear Example
+Having figures appear from .md in GitHub requires chunk names without spaces.  
+https://stackoverflow.com/questions/51531228/unable-to-view-plots-on-md-file-in-github
 ```{r linearexample}
 linear_eqn <- function(x, m, Intercept){(x * m) + Intercept
 }
@@ -132,17 +174,29 @@ ggplot(data.frame(x = c(1, 3000)), aes(x=x)) +
 Gompertz equations [@zwieteringModelingBacterialGrowth1990] have shapes similar to Logistic fits but are more readily modified to include 'lag' as a parameter for an initial time period over which cell count does not (measurably) increase.
 'lag' may be a true biological lag representing cellular acclimation to new growth conditions, and/or may result from cell counts below the level of instrumental resolution, giving no detectable growth.
 
-Pt = ModGompertzEqn <- (Amax*(exp(-exp((Amu*exp(1))/Amax*(lag-x)+1))))
+The Gompertz equations are based on fitting the ln of (data normalized to an 'Intercept').
+Therefore the plots start at '0'; ln(Intercept/Intercept) = ln(1) = 0.
+The reported value for Amu is comparable to mu from a Logistic or Exponential fit.
+But the reported value for Amax = ln(Max/Intercept).
+To retrieve an estimate for Max we need to take an antilog and multiply through by the Intercept.
+Chosing what value to use as an intercept for the Gompertz equations is the main challenge.  
+The first value or a single minimum value may be aberrant.
+An average of kth(minimum values) is possible.
+The advantage of the normalization is that the Intercept parameter is no longer fit, which improves statistical power for the fitting of additional parameters such as Lag.
 
-ModGompertzEqn <- function(Amax,Amu,lag,x){(Amax*(exp(-exp((Amu*exp(1))/Amax*(lag-x)+1))))}
+
+Pt = ModGompertzEqn <- (Amax*(exp(-exp((Amu*exp(1))/Amax*(Lag-x)+1))))
+Pt = ModGompertzEqn <- ((ln(Max/Intercept)*(exp(-exp((Amu*exp(1))/ln(Max/Intercept)*(Lag-x)+1))))
+
+ModGompertzEqn <- function(Amax,Amu,Lag,x){(Amax*(exp(-exp((Amu*exp(1))/Amax*(Lag-x)+1))))}
 
 ### Modified Gompertz Fit with Lag example
 ```{r modgompertzexample}
 #natural log(RFU/min(RFU)); works, but confusing
-mod_gomp_lag_eqn <-  function(x, Amax,Amu,lag){(Amax*(exp(-exp((Amu*exp(1))/Amax*(Lag-x)+1))))
+mod_gomp_lag_eqn <-  function(x, Amax,Amu,Lag){(Amax*(exp(-exp((Amu*exp(1))/Amax*(Lag-x)+1))))
   }
 
-mod_gomp_lag_eqn_test <-  function(x, Amax = 1000, Amu  = 0.5, Lag = 1000 ){(Amax*(exp(-exp((Amu*exp(1))/Amax*(Lag-x)+1))))
+mod_gomp_lag_eqn_test <-  function(x, Amax = 1000/10, Amu  = 0.5, Lag = 1000 ){(Amax*(exp(-exp((Amu*exp(1))/Amax*(Lag-x)+1))))
   }
 
 ggplot(data.frame(x = c(1, 3000)), aes(x=x)) + 
@@ -156,23 +210,43 @@ ggplot(data.frame(x = c(1, 3000)), aes(x=x)) +
 # Materials and Methods 
 We grow cultures. To compare results across cultures we want to fit the growth data with models to get fitted parameters.
 
-Set your initials code for your MicroColonyGrowth data.
-```{r initials, message = FALSE}
-MyInitials <- c("AnMa")
-```
-
 
 ## Import data. 
 The import function may open a Google log in to get an authorization code in a separate browser window. Copy/paste the authorization code into the 'Console' window below.
 See next chunk for manual alternative if needed; download .csv from GoogleSheet, then upload the .csv to RStudio.cloud.
 
-
 ```{r import data from googlesheet, message = FALSE}
 gs4_deauth()
-ColonyData <- read_sheet("https://docs.google.com/spreadsheets/d/1DWyASxmu5DURkcegWM0Sykp9x3F3eQfMxdz0VYJ9mOI/edit?usp=sharing")
+ColonyData <- read_sheet(ColonyGoogleSheet)
 
 ColonyData
 ```
+
+
+```{r read data}
+# ImportGrowth <- readRDS(file = file.path(DataFolder,paste(Project,FileIDSingle, "GrowthLong.Rds", sep  = "_"),fsep = .Platform$file.sep))
+# 
+# #https://stackoverflow.com/questions/64111558/passing-variables-into-the-names-glue-parameter-of-tidyrpivot-wider
+# 
+# GrowthLong <- ImportGrowth %>%
+#   filter(Wavelength %in% ChlAb) %>%
+#   pivot_wider(id_cols = -c(OD, AvBlankOD), names_from = Wavelength, values_from = CorrOD, names_glue = "nm_{Wavelength}") %>% 
+#   mutate("680min720" = nm_680 - nm_720, "680min750" = nm_680 - nm_750) %>%
+#   pivot_longer(cols = c(nm_680, nm_720, nm_750, "680min720", "680min750"), values_to = "CorrOD", names_to = "Wavelength") %>%
+#   mutate(Wavelength = str_remove(Wavelength, "nm_")) %>%
+#   mutate(CorrOD = if_else(CorrOD < 0.001, 0.001, CorrOD)) #experimentally test to set values below 0.001 to 0.001 (~detection limit device)
+# 
+# 
+# GrowthLong <- GrowthLong %>%
+#   group_by(!!sym(NestVar), !!sym(RowVar2), !!sym(ColVar), !!sym(NestVarII), Wavelength, exp_date) %>%
+#   #mutate(OD = OD - 0.08) #rough approach to correct for media blank, replace with true media-blank once script runs
+#   mutate(logODminOD = log(CorrOD/min(CorrOD))) %>% #problem with log leads to NaN, when value is very small
+#   ungroup()
+
+
+```
+
+
 
 Alternative
 Doug: Manually Download Data from Googlesheets as .csv.
@@ -200,6 +274,7 @@ Filter the class data to include only 'MyData' (defined by 'MyInitials' set abov
 Convert the data to long format for analyses.
 Convert the YYYYMMDDHHMM data column to a formatted datetime column,
 Generate a numeric ehours column for elapsed time.
+Add a ln(normalized area column) for Gompertz fitting
 ```{r long data, message = FALSE}
 #filter data,long format for analyses
 MyData <- ColonyData %>%
@@ -212,6 +287,12 @@ MyData <- MyData %>%
   group_by(Substrate, Treatment) %>%
   mutate(YYYYMMDDHHMM = ymd_hm(YYYYMMDDHHMM)) %>%
   mutate(ehours = as.numeric(((YYYYMMDDHHMM - min(YYYYMMDDHHMM, na.rm = TRUE)))/3600))
+
+#ln(Area/minArea)
+MyData <- MyData %>%
+  group_by(Substrate, Treatment) %>%
+  mutate(lnAreaNorm = log(Areamm2/min(Areamm2, na.rm = TRUE))) %>%
+  filter(!is.na(Areamm2))
 ```
 
 
@@ -248,8 +329,68 @@ MyData %>%
   labs(title = "Colony Growth",
        subtitle = MyInitials)
 
+```
+
+
+```{r preplot}
+  # filter(strain %in% Strains) %>%
+  # filter(exp_date %in% StartDate) %>%
+  # filter(Wavelength %in% Wavelength_nm) %>%
+  # #filter(tissue_treated_plate == TissueTreated) %>%
+  # #filter(media == Media) %>%
+  # filter(SourceSal == source_salinity) %>%
+  # ggplot()+
+  # geom_point(aes(x = E_hours, y = !!sym(FitVar), colour = as.factor(Wavelength))) +
+  # coord_cartesian(ylim = c(0, 2)) +
+  # facet_grid(cols = vars(!!sym(RowVar2)), rows = vars(!!sym(NestVar))) +
+  #   theme_bw() +
+  # labs(caption = paste(Wavelength_nm, "nm; PAR", Par_ue, "uE"))
 
 ```
+
+```{r noise filtering}
+#set filtering variables at top
+#pick filtering option as either a simple threshold or a factor change between OD and OD_lead
+# 
+# Screen_OD <- 2
+# 
+# FitData <- as_tibble(GrowthLong) %>%
+#   filter(strain %in% Strains) %>%
+#   filter(exp_date %in% StartDate) %>% #if multiple dates are applied, use %in% instead of ==
+#   filter(Wavelength %in% Wavelength_nm) %>%
+#   #filter(tissue_treated_plate == TissueTreated) %>%
+#   #filter(media == Media) %>%
+#   filter(source_salinity == SourceSal) %>%
+#   group_by(well) %>%
+#   arrange(well, E_hours) %>%
+#   mutate(OD_lead = lead(CorrOD)) %>%
+#   #filter(CorrOD < (OD_lead / Screen_OD)) %>%
+#   filter(CorrOD < Screen_OD) %>%
+#   filter(E_hours < StopHours)
+# 
+# test <- FitData %>%
+#   group_by(!!sym(NestVar), !!sym(RowVar2), !!sym(RowVar), !!sym(ColVar), Wavelength, exp_date) %>%
+#   mutate(LagSeed = E_hours[which.min(CorrOD)])
+  
+```
+
+
+
+```{r filterplot}
+# FitData %>%
+#   filter(strain %in% Strains) %>%
+#   filter(exp_date %in% StartDate) %>%
+#   filter(Wavelength %in% Wavelength_nm) %>%
+#   #filter(tissue_treated_plate == TissueTreated) %>%
+#   filter(media == Media) %>%
+#   ggplot()+
+#   geom_point(aes(x = E_hours, y = !!sym(FitVar), colour = as.factor(Wavelength))) +
+#   coord_cartesian(ylim = c(0, 2)) +
+#   facet_grid(cols = vars(!!sym(RowVar2)), rows = vars(!!sym(NestVar))) +
+#     theme_bw() +
+#   labs(caption = paste(Wavelength_nm, "nm; PAR", Par_ue, "uE"))
+```
+
 
 # Colony Size vs. Hours Elapsed since First Measure.
 
@@ -267,47 +408,25 @@ MyData %>%
 ```
 
 
-## Let R find the best fit parameters for models of the data.
-```{r linear starting parameters, message = FALSE}
-#define starting, lower, and upper bounds for fit parameters to constrain linear equations
-linear_eqn_start <- list(m = 1, Intercept = min(MyData$Areamm2, na.rm = TRUE))
-linear_eqn_lower <- c(0,0)
-
-linear_eqn_upper <- c(max(MyData$Areamm2, na.rm = TRUE), max(MyData$Areamm2, na.rm = TRUE))
-```
-
-```{r exponential starting parameters, message = FALSE}
-#define starting, lower, and upper bounds for fit parameters to constrain linear equations
-exp_eqn_start <- list(mu = 0.01, Intercept = min(MyData$Areamm2, na.rm = TRUE))
-exp_eqn_lower <- c(0,0)
-
-exp_eqn_upper <- c(1, max(MyData$Areamm2, na.rm = TRUE))
-```
-
-```{r logistic starting parameters, message = FALSE}
-#define starting, lower, and upper bounds for fit parameters to constrain logistic fit
-logistic_eqn_start<-list(mu = 0.05, Intercept = min(MyData$Areamm2, na.rm = TRUE), Max = max(MyData$Areamm2, na.rm = TRUE))
-
-logistic_eqn_lower <- c(0.001, (min(MyData$Areamm2, na.rm = TRUE) * 0.1), (max(MyData$Areamm2, na.rm = TRUE) * 0.5))
-
-
-logistic_eqn_upper <- c(1, (min(MyData$Areamm2, na.rm = TRUE) * 4), (max(MyData$Areamm2, na.rm = TRUE) * 2))
-
-```
-
+## Let R find the best fit parameters for different models of the data.
 
 Each user measured multiple colonies, possibly on multiple substrates with multiple treatments.
 We create a 'nested' data frame where all data in columns YYYYMMDDHHMM, Areamm2, ehours, from a single user, a single colony, on a single substrate, with a single treatment are 'nested' together for later fitting of growth curves.
 ```{r nest data for curve fitting, message = FALSE}
 MyData_nest <- as_tibble(MyData) %>%
   #filter(Treatment != "Hot") %>%
-  nest(data = c(YYYYMMDDHHMM, Areamm2, ehours, Temp_C))
+  nest(data = c(YYYYMMDDHHMM, Areamm2, lnAreaNorm, ehours, Temp_C))
 ```
 
 ## Fit and plot treatment colony specific linear growth trajectories using nest purrr:map & broom::augment
 This chunk uses complicated code from the 'Tidyverse' package.
 R will iteratively vary the parameters of the fitting equations to minimize the residuals (discrepancies) between the data points (nested) and the points predicted by the model with a given set of parameters.
 ```{r colonylineargrowth, message = FALSE}
+#define starting, lower, and upper bounds for fit parameters to constrain linear equations
+linear_eqn_start <- list(m = 1, Intercept = min(MyData$Areamm2, na.rm = TRUE))
+linear_eqn_lower <- c(0,0)
+
+linear_eqn_upper <- c(max(MyData$Areamm2, na.rm = TRUE), max(MyData$Areamm2, na.rm = TRUE))
 
 #, lower = linear_eqn_lower, upper = linear_eqn_upper
 
@@ -341,7 +460,11 @@ colony_lin %>%
 
 ## Fit and plot treatment colony specific exponential growth trajectories using nest purrr:map & broom::augment
 ```{r colonyexponentialgrowth, message = FALSE}
+#define starting, lower, and upper bounds for fit parameters to constrain exponential fit
+exp_eqn_start <- list(mu = 0.01, Intercept = min(MyData$Areamm2, na.rm = TRUE))
+exp_eqn_lower <- c(0,0)
 
+exp_eqn_upper <- c(1, max(MyData$Areamm2, na.rm = TRUE))
 #, lower = exp_eqn_lower, upper = exp_eqn_upper
 
 colony_exp <- MyData_nest %>% 
@@ -374,6 +497,12 @@ colony_exp %>%
 
 ## Fit and plot treatment colony specific logistic growth trajectories using nest purrr:map & broom::augment
 ```{r colonylogisticgrowth, message = FALSE}
+#define starting, lower, and upper bounds for fit parameters to constrain logistic fit
+logistic_eqn_start<-list(mu = 0.05, Intercept = min(MyData$Areamm2, na.rm = TRUE), Max = max(MyData$Areamm2, na.rm = TRUE))
+
+logistic_eqn_lower <- c(0.001, (min(MyData$Areamm2, na.rm = TRUE) * 0.1), (max(MyData$Areamm2, na.rm = TRUE) * 0.5))
+
+logistic_eqn_upper <- c(1, (min(MyData$Areamm2, na.rm = TRUE) * 4), (max(MyData$Areamm2, na.rm = TRUE) * 2))
 
 #, lower = logistic_eqn_lower, upper = logistic_eqn_upper
 colony_log <- MyData_nest  %>% 
@@ -405,6 +534,48 @@ colony_log %>%
   select(-c(data, fit, predict, param)) %>%
   mutate_if(is.numeric, round, digits = 2)
 ```
+
+# In progress; add modified Gompertz with lag
+
+## Fit and plot treatment colony specific modified Gompertz with lag growth trajectories using nest purrr:map & broom::augment.  
+Note fit is run on lnAreaNorm
+```{r modgompertzlaggrowth, message = FALSE}
+mod_gomp_lag_eqn_start <- list(Amax= max(MyData$lnAreaNorm, na.rm = TRUE), Amu = 0.005, Lag = 10)
+
+mod_gomp_lag_eqn_lower <- c((max(MyData$Areamm2, na.rm = TRUE) * 0.25), 0.001, 0)
+mod_gomp_lag_eqn_upper <- c((max(MyData$Areamm2, na.rm = TRUE) * 2), 0.1, max(MyData$ehours, na.rm = TRUE))
+
+logistic_eqn_upper <- c(1, (min(MyData$Areamm2, na.rm = TRUE) * 4), (max(MyData$Areamm2, na.rm = TRUE) * 2))
+
+colony_modgompertzlag <- MyData_nest  %>% 
+  #filter(Colonies == "col1mm2") %>%
+  mutate(
+  fit = map(data, possibly(~nlsLM(lnAreaNorm ~ mod_gomp_lag_eqn(x = ehours, Amax, Amu, Lag), data = .x, start =  mod_gomp_lag_eqn_start), otherwise = NULL)),
+  predict = map(fit, possibly(augment, otherwise = NULL)),
+  tidied =  map(fit, possibly(tidy, otherwise = NULL)),
+  param = map(fit,possibly(glance, otherwise = NULL))
+  )
+
+colony_modgompertzlag %>% 
+  unnest(predict) %>%
+  ggplot() +  
+  geom_line(aes(x = ehours, y = .fitted), size = 0.5) +
+   geom_line(aes(x = ehours, y = .resid, alpha = 0.1), linetype = "dashed", colour = "red", show.legend = FALSE) +
+  geom_point(data = MyData, aes(x = ehours, y = lnAreaNorm), colour = "green") +
+  facet_grid(cols = vars(Colonies), rows = vars(Treatment, Substrate)) +
+  theme_bw() +
+  labs(y = ".fitted Areamm^2",
+       title = "Colony Growth, Modified Gompertz with Lag",
+       subtitle = MyInitials,
+       caption = "Modified Gompertz with Lag, residuals dashed red line")
+
+#parameters of colony specific logistic fits
+colony_modgompertzlag %>%
+  unnest(tidied) %>%
+  select(-c(data, fit, predict, param)) %>%
+  mutate_if(is.numeric, round, digits = 2)
+```
+
 
 # XXXXXX
 
