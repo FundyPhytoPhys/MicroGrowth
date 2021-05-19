@@ -286,13 +286,15 @@ MyData <- ColonyData %>%
 MyData <- MyData %>%
   group_by(Substrate, Treatment) %>%
   mutate(YYYYMMDDHHMM = ymd_hm(YYYYMMDDHHMM)) %>%
-  mutate(ehours = as.numeric(((YYYYMMDDHHMM - min(YYYYMMDDHHMM, na.rm = TRUE)))/3600))
+  mutate(ehours = as.numeric(((YYYYMMDDHHMM - min(YYYYMMDDHHMM, na.rm = TRUE)))/3600)) %>%
+  ungroup()
 
 #ln(Area/minArea)
 MyData <- MyData %>%
   group_by(Substrate, Treatment) %>%
   mutate(lnAreaNorm = log(Areamm2/min(Areamm2, na.rm = TRUE))) %>%
-  filter(!is.na(Areamm2))
+  filter(!is.na(Areamm2)) %>%
+  ungroup()
 ```
 
 
@@ -591,11 +593,18 @@ Doug to implement if feasible;  too slow, too long
 ClassData <- ColonyData %>%
   pivot_longer(cols = colnames(ColonyData[5:7]), names_to = 'Colonies', values_to = "Areamm2") %>%
   filter(Areamm2 != "NULL") %>%
+  filter(!is.na(Areamm2)) %>%
   mutate(Areamm2 = as.numeric(Areamm2)) %>%
   mutate(YYYYMMDDHHMM = ymd_hm(YYYYMMDDHHMM)) %>%
   group_by(Initials_4letter) %>%
   mutate(ehours = as.numeric((YYYYMMDDHHMM - min(YYYYMMDDHHMM, na.rm = TRUE))/3600)) %>% 
   filter(ehours < 320)
+
+ClassData <- ClassData %>%
+  group_by(Initials_4letter, Colonies, Substrate, Treatment) %>%
+  mutate(lnAreaNorm = log(Areamm2/min(Areamm2, na.rm = TRUE))) %>%
+  filter(!is.na(Areamm2)) %>%
+  ungroup()
 ```
 
 ## Plot class data facet by Substrate and Treatment
@@ -615,7 +624,7 @@ ClassDataPlot <- ClassData %>%
 
 ```{r nestclassdatasubstratetreatment, message = FALSE}
 Class_nest <- as_tibble(ClassData) %>%
-  nest(data = c(Temp_C, Initials_4letter, YYYYMMDDHHMM, Areamm2, ehours, Colonies))
+  nest(data = c(Temp_C, Initials_4letter, YYYYMMDDHHMM, Areamm2, lnAreaNorm, ehours, Colonies))
 ```
 
 ## Fit logistic model to pooled class data, nested by Substrate and Treatment
@@ -625,7 +634,7 @@ Doug added 'possibly' as an error catch that allows the fit of nests to proceed 
 #define starting values for fit parameters to constrain logistic fit
 #logistic_eqn_start<-list(Max = max(ClassData$Areamm2, na.rm = TRUE), mu = 0.05, Intercept = min(ClassData$Areamm2, na.rm = TRUE))
 
-logistic_eqn_start<-list(Max = 300, mu = 0.05, Intercept = 1)
+logistic_eqn_start<-list(mu = 0.05, Intercept = 1, Max = 300)
 
 #define lower, and upper bounds for fit parameters to constrain logistic fit
 #logistic_eqn_lower<-c(50,0.001,1)
@@ -636,7 +645,7 @@ logistic_eqn_start<-list(Max = 300, mu = 0.05, Intercept = 1)
 
 Class_log <- Class_nest %>%
   mutate(
-   fit = map(data, possibly(~nlsLM(Areamm2 ~ logistic_eqn(x = ehours, pmax, mu, Intercept), data = .x, start = logistic_eqn_start), otherwise = NULL)),
+   fit = map(data, possibly(~nlsLM(Areamm2 ~ logistic_eqn(x = ehours, mu, Intercept, Max), data = .x, start = logistic_eqn_start), otherwise = NULL)),
   predict = map(fit, possibly(augment, otherwise = NULL)),
   tidied =  map(fit, possibly(tidy, otherwise = NULL)),
   param = map(fit, possibly(glance, otherwise = NULL))
@@ -649,12 +658,12 @@ Class_log %>%
   ggplot() +
   geom_point(aes(x = ehours, y = Areamm2)) +
   geom_line(aes(x = ehours, y = .fitted), size = 0.5) +
-geom_ribbon(aes(x = ehours, ymin = (.fitted - .resid), ymax = (.fitted + .resid), alpha = 0.1),show.legend = FALSE) +
+geom_line(aes(x = ehours, y = .resid, alpha = 0.1), linetype = "dashed", colour = "red", show.legend = FALSE) +
   facet_grid(cols = vars(Substrate), rows = vars(Treatment)) +
   theme_bw() +
   labs(y = "Areamm^2",
        title = "Colony Growth, Logistic Fits",
-       caption = "Logistic line, residuals grey ribbon, points data")
+       caption = "Logistic line, residuals dashed red line, points data")
 
 #parameters of colony specific logistic fits
 Class_log %>%
