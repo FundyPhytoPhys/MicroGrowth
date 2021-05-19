@@ -43,7 +43,7 @@ Microbial population increases by a constant amount per unit time.
 (Pseudo)Linear growth is sometimes observed when a constant input of a resource (ex. light) is shared among an increasing number of cells.  
 The population adds a constant number of cells per unit time, but each cell is growing more slowly with each time increment as its share of the constant resource input decreases.  
 
-Two fitted parameters; intercept (P0) and linearslope (m)
+Two fitted parameters; Intercept (P0) and linear slope (m)
 Pt = ehours*m + P0
 
 ### Linear Example
@@ -71,13 +71,13 @@ Pt = P0 *(exp(mu*ehours))
 ### Exponential Example
 ```{r exponentialexample}
 
-exp_rise_eqn <- function(x, mu, Intercept){Intercept *exp(x*mu)
+exp_eqn <- function(x, mu, Intercept){Intercept *exp(x*mu)
 }
   
-exp_rise_eqn_test <- function(x, mu = 0.005, Intercept = 5){Intercept *exp(x*mu)
+exp_eqn_test <- function(x, mu = 0.005, Intercept = 5){Intercept *exp(x*mu)
 }
 ggplot(data.frame(x=c(1, 3000)), aes(x=x)) + 
-  stat_function(fun = exp_rise_eqn_test) +
+  stat_function(fun = exp_eqn_test) +
   labs(title = "Exponential example") +
   theme_bw()
 ```
@@ -154,7 +154,7 @@ ggplot(data.frame(x = c(1, 3000)), aes(x=x)) +
 # XXXXXXXXX
 
 # Materials and Methods 
-We grew cultures.
+We grow cultures. To compare results across cultures we want to fit the growth data with models to get fitted parameters.
 
 Set your initials code for your MicroColonyGrowth data.
 ```{r initials, message = FALSE}
@@ -173,9 +173,10 @@ ColonyData <- read_sheet("https://docs.google.com/spreadsheets/d/1DWyASxmu5DURkc
 
 ColonyData
 ```
+
 Alternative
 Doug: Manually Download Data from Googlesheets as .csv.
-Doug: Manually Upload to RStudio.cloud.
+Doug: Manually Upload .csv to folder containing .Rproj
 Read in .csv into ColonyData object.min
 ```{r read local data, message = FALSE}
 # ColonyData <- read_csv("MicroColonyData2021.csv", col_names = TRUE)
@@ -183,8 +184,8 @@ Read in .csv into ColonyData object.min
 ```
 
 
-Error correction chunk if some data columns have converted to 'list' format upon import by 'plucking' the first entry in each cell in each column and converting to numeric format.
-Could make more sophisticated.
+Example Error correction chunk if some data columns have converted to 'list' format upon import by 'plucking' the first entry in each cell in each column and converting to numeric format.
+Could make this more sophisticated.
 ```{r extract numeric from list}
 # ColonyData <- ColonyData %>%
 #   mutate (YYYYMMDDHHMM = as.numeric(as.character(pluck(col1mm2, 1))),
@@ -218,8 +219,8 @@ MyData <- MyData %>%
 Upload representative colony images to your RStudio.cloud.
 Add representative images of your colony growth over time to your .Rmd.
 Will work with .JPG and .png; not sure about other graphic formats.
-```{r example colonies, fig.align = 'centre', out.width='50%', out.height='70%'}
-#knitr::include_graphics(file.path("202101262155.jpg"))
+```{r examplecolonies, fig.align = 'centre', out.width='50%', out.height='70%'}
+knitr::include_graphics(file.path("202101240946.jpg"))
 ```
 
 
@@ -266,54 +267,26 @@ MyData %>%
 ```
 
 
-## My Favourite Caption
-
 ## Let R find the best fit parameters for models of the data.
-Create R function for linear equation.
-
-```{r linear function, message = FALSE}
-#define a linear equation as a function.
-#x will be taken from 'ehours' when we run the fit.
-linear_eqn <- function(x, m, intercept){(x * m) + intercept
-}
-```
-
-```{r set starting parameters for linear model, message = FALSE}
+```{r linear starting parameters, message = FALSE}
 #define starting, lower, and upper bounds for fit parameters to constrain linear equations
-linear_eqn_start <- list(m = 1, intercept = min(MyData$Areamm2, na.rm = TRUE))
+linear_eqn_start <- list(m = 1, Intercept = min(MyData$Areamm2, na.rm = TRUE))
 linear_eqn_lower <- c(0,0)
 
 linear_eqn_upper <- c(max(MyData$Areamm2, na.rm = TRUE), max(MyData$Areamm2, na.rm = TRUE))
 ```
 
-Create R function for exponential equation.
-```{r exponential function, message = FALSE}
-#define an exponential equation as a function.
-#x will be taken from 'ehours' when we run the fit.
-exp_eqn <- function(x, mu, intercept){intercept * exp(x*mu)
-}
-```
-
-```{r set starting parameters for exponential model, message = FALSE}
+```{r exponential starting parameters, message = FALSE}
 #define starting, lower, and upper bounds for fit parameters to constrain linear equations
-exp_eqn_start <- list(mu = 0.1, intercept = min(MyData$Areamm2, na.rm = TRUE))
+exp_eqn_start <- list(mu = 0.01, Intercept = min(MyData$Areamm2, na.rm = TRUE))
 exp_eqn_lower <- c(0,0)
 
 exp_eqn_upper <- c(1, max(MyData$Areamm2, na.rm = TRUE))
 ```
 
-Create R function for logistic equation.
-```{r logistic function, message = FALSE}
-#define a logistic equation as a function.
-#x will be taken from 'ehours' when we run the fit.
-logistic_eqn <- function(x, pmax, mu, intercept){(pmax*intercept*exp(mu*x))/(pmax + (intercept*(exp(mu*x)-1)))
-}
-```
-
-
-```{r set starting parameters for logistic model, message = FALSE}
+```{r logistic starting parameters, message = FALSE}
 #define starting, lower, and upper bounds for fit parameters to constrain logistic fit
-logistic_eqn_start<-list(pmax = max(MyData$Areamm2, na.rm = TRUE), mu = 0.05, intercept = min(MyData$Areamm2, na.rm = TRUE))
+logistic_eqn_start<-list(Max = max(MyData$Areamm2, na.rm = TRUE), mu = 0.05, Intercept = min(MyData$Areamm2, na.rm = TRUE))
 
 logistic_eqn_lower<-c((max(MyData$Areamm2, na.rm = TRUE) * 0.5),0.001,((min(MyData$Areamm2, na.rm = TRUE) * 0.1)))
 
@@ -332,11 +305,13 @@ MyData_nest <- as_tibble(MyData) %>%
 ## Fit and plot treatment colony specific linear growth trajectories using nest purrr:map & broom::augment
 This chunk uses complicated code from the 'Tidyverse' package.
 R will iteratively vary the parameters of the fitting equations to minimize the residuals (discrepancies) between the data points (nested) and the points predicted by the model with a given set of parameters.
-```{r colony linear growth, message = FALSE}
+```{r colonylineargrowth, message = FALSE}
+
+#, lower = linear_eqn_lower, upper = linear_eqn_upper
 
 colony_lin  <- MyData_nest %>% 
   mutate(
-  fit = map(data, possibly(~nlsLM(Areamm2 ~ linear_eqn(x = ehours, m, intercept), data = .x, start = linear_eqn_start, lower = linear_eqn_lower, upper = linear_eqn_upper), otherwise = NULL)),
+  fit = map(data, possibly(~nlsLM(Areamm2 ~ linear_eqn(x = ehours, m, Intercept), data = .x, start = linear_eqn_start), otherwise = NULL)),
   predict = map(fit, possibly(augment, otherwise = NULL)),
   tidied =  map(fit, possibly(tidy, otherwise = NULL)),
   param = map(fit, possibly(glance, otherwise = NULL))
@@ -346,14 +321,14 @@ colony_lin %>%
   unnest(predict)  %>% 
   ggplot() +  
   geom_line(aes(x = ehours, y = .fitted), size = 0.5) +
-geom_ribbon(aes(x = ehours, ymin = (.fitted - .resid), ymax = (.fitted + .resid), alpha = 0.1),show.legend = FALSE) +
+  geom_line(aes(x = ehours, y = .resid, alpha = 0.1), linetype = "dashed", colour = "red", show.legend = FALSE) +
   facet_grid(cols = vars(Colonies), rows = vars(Treatment, Substrate)) +
   geom_point(data = MyData, aes(x = ehours, y = Areamm2), colour = "green") +
   theme_bw() +
   labs(y = ".fitted Areamm^2",
        title = "Colony Growth, Linear Fits",
        subtitle = MyInitials,
-       caption = "Linear line, residuals grey ribbon")
+       caption = "Linear line, residuals dashed red line")
 
 #parameters of colony specific linear fits
 colony_lin %>% 
@@ -363,11 +338,13 @@ colony_lin %>%
 ```
 
 ## Fit and plot treatment colony specific exponential growth trajectories using nest purrr:map & broom::augment
-```{r colony exponential growth, message = FALSE}
+```{r colonyexponentialgrowth, message = FALSE}
+
+#, lower = exp_eqn_lower, upper = exp_eqn_upper
 
 colony_exp <- MyData_nest %>% 
   mutate(
-  fit = map(data, possibly(~nlsLM(Areamm2 ~ exp_eqn(x = ehours, mu, intercept), data = .x, start = exp_eqn_start, lower = exp_eqn_lower, upper = exp_eqn_upper), otherwise = NULL)),
+  fit = map(data, possibly(~nlsLM(Areamm2 ~ exp_eqn(x = ehours, mu, Intercept), data = .x, start = exp_eqn_start), otherwise = NULL)),
   predict = map(fit, possibly(augment, otherwise = NULL)),
   tidied =  map(fit, possibly(tidy, otherwise = NULL)),
   param = map(fit,possibly(glance, otherwise = NULL))
@@ -377,14 +354,14 @@ colony_exp %>%
   unnest(predict)  %>% 
   ggplot() +  
   geom_line(aes(x = ehours, y = .fitted), size = 0.5) +
-geom_ribbon(aes(x = ehours, ymin = (.fitted - .resid), ymax = (.fitted + .resid), alpha = 0.1),show.legend = FALSE) +
+   geom_line(aes(x = ehours, y = .resid, alpha = 0.1), linetype = "dashed", colour = "red", show.legend = FALSE) +
   facet_grid(cols = vars(Colonies), rows = vars(Treatment, Substrate)) +
   geom_point(data = MyData, aes(x = ehours, y = Areamm2), colour = "green") +
   theme_bw() +
   labs(y = ".fitted Areamm^2",
        title = "Colony Growth, Exponential Fits",
        subtitle = MyInitials,
-       caption = "Exponential line, residuals grey ribbon")
+       caption = "Exponential line, residuals dashed red line")
 
 #parameters of colony specific exponential fits
 colony_exp %>% 
@@ -393,13 +370,16 @@ colony_exp %>%
   mutate_if(is.numeric, round, digits = 2)
 ```
 
+# XXXX Fixing variable names so fits run
 
 ## Fit and plot treatment colony specific logistic growth trajectories using nest purrr:map & broom::augment
-```{r colony logistic growth, message = FALSE}
+```{r colonylogisticgrowth, message = FALSE}
+
+#, lower = logistic_eqn_lower, upper = logistic_eqn_upper
 colony_log <- MyData_nest  %>% 
   #filter(Colonies == "col1mm2") %>%
   mutate(
-  fit = map(data, possibly(~nlsLM(Areamm2 ~ logistic_eqn(x = ehours, pmax, mu, intercept), data = .x, start = logistic_eqn_start, lower = logistic_eqn_lower, upper = logistic_eqn_upper), otherwise = NULL)),
+  fit = map(data, possibly(~nlsLM(Areamm2 ~ logistic_eqn(x = ehours, Max, mu, Intercept), data = .x, start = logistic_eqn_start), otherwise = NULL)),
   predict = map(fit, possibly(augment, otherwise = NULL)),
   tidied =  map(fit, possibly(tidy, otherwise = NULL)),
   param = map(fit,possibly(glance, otherwise = NULL))
@@ -409,14 +389,14 @@ colony_log %>%
   unnest(predict) %>%
   ggplot() +  
   geom_line(aes(x = ehours, y = .fitted), size = 0.5) +
-geom_ribbon(aes(x = ehours, ymin = (.fitted - .resid), ymax = (.fitted + .resid), alpha = 0.1),show.legend = FALSE) +
+   geom_line(aes(x = ehours, y = .resid, alpha = 0.1), linetype = "dashed", colour = "red", show.legend = FALSE) +
   geom_point(data = MyData, aes(x = ehours, y = Areamm2), colour = "green") +
   facet_grid(cols = vars(Colonies), rows = vars(Treatment, Substrate)) +
   theme_bw() +
   labs(y = ".fitted Areamm^2",
        title = "Colony Growth, Logistic Fits",
        subtitle = MyInitials,
-       caption = "Logistic line, residuals grey ribbon")
+       caption = "Logistic line, residuals dashed red line")
 
 
 #parameters of colony specific logistic fits
@@ -461,7 +441,7 @@ ClassDataPlot <- ClassData %>%
 
 # Exploratory plot of all combinations of substrate and treatment run by the class.
 
-```{r nest class data by substrate and treatment, message = FALSE}
+```{r nestclassdatasubstratetreatment, message = FALSE}
 Class_nest <- as_tibble(ClassData) %>%
   nest(data = c(Temp_C, Initials_4letter, YYYYMMDDHHMM, Areamm2, ehours, Colonies))
 ```
@@ -469,11 +449,11 @@ Class_nest <- as_tibble(ClassData) %>%
 ## Fit logistic model to pooled class data, nested by Substrate and Treatment
 Some data 'nests' have too little data to fit or too little variation in the data to support a valid fit.  The range of minimum and maximum values across different Substrate/Treatment 'nests' also makes it difficult to assign starting, minimum and maximum values for parameters.
 Doug added 'possibly' as an error catch that allows the fit of nests to proceed even if one nest is unable to be fit.
-```{r log model to class, message = FALSE}
+```{r logmodelclass, message = FALSE}
 #define starting values for fit parameters to constrain logistic fit
-#logistic_eqn_start<-list(pmax = max(ClassData$Areamm2, na.rm = TRUE), mu = 0.05, intercept = min(ClassData$Areamm2, na.rm = TRUE))
+#logistic_eqn_start<-list(Max = max(ClassData$Areamm2, na.rm = TRUE), mu = 0.05, Intercept = min(ClassData$Areamm2, na.rm = TRUE))
 
-logistic_eqn_start<-list(pmax = 300, mu = 0.05, intercept = 1)
+logistic_eqn_start<-list(Max = 300, mu = 0.05, Intercept = 1)
 
 #define lower, and upper bounds for fit parameters to constrain logistic fit
 #logistic_eqn_lower<-c(50,0.001,1)
@@ -484,7 +464,7 @@ logistic_eqn_start<-list(pmax = 300, mu = 0.05, intercept = 1)
 
 Class_log <- Class_nest %>%
   mutate(
-   fit = map(data, possibly(~nlsLM(Areamm2 ~ logistic_eqn(x = ehours, pmax, mu, intercept), data = .x, start = logistic_eqn_start), otherwise = NULL)),
+   fit = map(data, possibly(~nlsLM(Areamm2 ~ logistic_eqn(x = ehours, pmax, mu, Intercept), data = .x, start = logistic_eqn_start), otherwise = NULL)),
   predict = map(fit, possibly(augment, otherwise = NULL)),
   tidied =  map(fit, possibly(tidy, otherwise = NULL)),
   param = map(fit, possibly(glance, otherwise = NULL))
