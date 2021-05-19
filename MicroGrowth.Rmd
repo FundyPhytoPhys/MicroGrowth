@@ -286,11 +286,13 @@ exp_eqn_upper <- c(1, max(MyData$Areamm2, na.rm = TRUE))
 
 ```{r logistic starting parameters, message = FALSE}
 #define starting, lower, and upper bounds for fit parameters to constrain logistic fit
-logistic_eqn_start<-list(Max = max(MyData$Areamm2, na.rm = TRUE), mu = 0.05, Intercept = min(MyData$Areamm2, na.rm = TRUE))
+logistic_eqn_start<-list(mu = 0.05, Intercept = min(MyData$Areamm2, na.rm = TRUE), Max = max(MyData$Areamm2, na.rm = TRUE))
 
-logistic_eqn_lower<-c((max(MyData$Areamm2, na.rm = TRUE) * 0.5),0.001,((min(MyData$Areamm2, na.rm = TRUE) * 0.1)))
+logistic_eqn_lower <- c(0.001, (min(MyData$Areamm2, na.rm = TRUE) * 0.1), (max(MyData$Areamm2, na.rm = TRUE) * 0.5))
 
-logistic_eqn_upper<-c((max(MyData$Areamm2, na.rm = TRUE) * 2),1,((min(MyData$Areamm2, na.rm = TRUE) * 4)))
+
+logistic_eqn_upper <- c(1, (min(MyData$Areamm2, na.rm = TRUE) * 4), (max(MyData$Areamm2, na.rm = TRUE) * 2))
+
 ```
 
 
@@ -370,8 +372,6 @@ colony_exp %>%
   mutate_if(is.numeric, round, digits = 2)
 ```
 
-# XXXX Fixing variable names so fits run
-
 ## Fit and plot treatment colony specific logistic growth trajectories using nest purrr:map & broom::augment
 ```{r colonylogisticgrowth, message = FALSE}
 
@@ -379,7 +379,7 @@ colony_exp %>%
 colony_log <- MyData_nest  %>% 
   #filter(Colonies == "col1mm2") %>%
   mutate(
-  fit = map(data, possibly(~nlsLM(Areamm2 ~ logistic_eqn(x = ehours, Max, mu, Intercept), data = .x, start = logistic_eqn_start), otherwise = NULL)),
+  fit = map(data, possibly(~nlsLM(Areamm2 ~ logistic_eqn(x = ehours, mu, Intercept, Max), data = .x, start = logistic_eqn_start), otherwise = NULL)),
   predict = map(fit, possibly(augment, otherwise = NULL)),
   tidied =  map(fit, possibly(tidy, otherwise = NULL)),
   param = map(fit,possibly(glance, otherwise = NULL))
@@ -406,6 +406,7 @@ colony_log %>%
   mutate_if(is.numeric, round, digits = 2)
 ```
 
+# XXXXXX
 
 ## Compare Linear, Exponential, and Logistic Models using ANOVA
 Doug to implement if feasible;  too slow, too long
