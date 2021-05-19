@@ -3,16 +3,20 @@ title: "MicroGrowth"
 author: "Douglas A. Campbell, Maximilian Berthold"
 date: "`r format(Sys.Date())`"
 output:
-  html_document:
+  html_document: 
     code_folding: hide
-    df_print: paged
-    keep_md: true
+    keep_md: yes
+    fig_caption: yes
 bibliography: MicrobialGrowthFitting.bib    
 ---
 # Acknowledgements
 This report uses test data accumulated by the BIOL2201 Class, 2021, Mount Allison University under the guidance of L. Barney.
 
-# Run This Chunk First
+# Run These Chunks First
+
+```{r global_options}
+knitr::opts_chunk$set(fig.path='Figs/')
+```
 Additional libraries needed to run the project.
 'googledrive' and 'googlesheets4' manage access to googlesheets, used for MetaData catalogs
 ```{r load libraries, echo = FALSE, message = FALSE}
