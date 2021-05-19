@@ -47,7 +47,7 @@ Two fitted parameters; intercept (P0) and linearslope (m)
 Pt = ehours*m + P0
 
 ### Linear Example
-```{r linear example}
+```{r linearexample}
 linear_eqn <- function(x, m, Intercept){(x * m) + Intercept
 }
 
@@ -69,7 +69,7 @@ Two fitted parameters; intercept (P0) and exponential growth rate constant (mu, 
 Pt = P0 *(exp(mu*ehours))
 
 ### Exponential Example
-```{r exponential example}
+```{r exponentialexample}
 
 exp_rise_eqn <- function(x, mu, Intercept){Intercept *exp(x*mu)
 }
@@ -89,7 +89,7 @@ Three parameters; intercept (P0), exponential growth rate constant (mu) and plat
 Pt = Max - ((Max-Intercept)*exp(x*-mu)
 
 ### Exponential rise towards a plateau example
-```{r rise to plateau example}
+```{r risetoplateauexample}
 exp_rise_plat_eqn <- function(x, mu = 0.005, Intercept){Max - ((Max-Intercept)*exp(x*-mu))
 }
 
@@ -113,7 +113,7 @@ There are multiple equivalent formulations of the logistic equation.
 Pt= {Pmax e^µt }/{Pmax + P0 (e^µt- 1)}
 
 ### Logistic example
-```{r logistic example}
+```{r logisticexample}
 logistic_eqn <- function(x, mu, Intercept, Max){(Max*Intercept*exp(mu*x))/(Max + (Intercept*(exp(mu*x)-1)))
 }
 
@@ -137,7 +137,7 @@ Pt = ModGompertzEqn <- (Amax*(exp(-exp((Amu*exp(1))/Amax*(lag-x)+1))))
 ModGompertzEqn <- function(Amax,Amu,lag,x){(Amax*(exp(-exp((Amu*exp(1))/Amax*(lag-x)+1))))}
 
 ### Modified Gompertz Fit with Lag example
-```{r mod gompertz example}
+```{r modgompertzexample}
 #natural log(RFU/min(RFU)); works, but confusing
 mod_gomp_lag_eqn <-  function(x, Amax,Amu,lag){(Amax*(exp(-exp((Amu*exp(1))/Amax*(Lag-x)+1))))
   }

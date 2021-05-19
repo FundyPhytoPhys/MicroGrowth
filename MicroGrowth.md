@@ -52,7 +52,7 @@ ggplot(data.frame(x=c(1, 3000)), aes(x=x)) +
   theme_bw()
 ```
 
-![](Figs/linear example-1.png)<!-- -->
+![](Figs/linearexample-1.png)<!-- -->
 
 
 ## Exponential  
@@ -76,7 +76,7 @@ ggplot(data.frame(x=c(1, 3000)), aes(x=x)) +
   theme_bw()
 ```
 
-![](Figs/exponential example-1.png)<!-- -->
+![](Figs/exponentialexample-1.png)<!-- -->
 
 
 ## Exponential rise towards a plateau
@@ -98,7 +98,7 @@ ggplot(data.frame(x=c(1, 3000)), aes(x=x)) +
   theme_bw()
 ```
 
-![](Figs/rise to plateau example-1.png)<!-- -->
+![](Figs/risetoplateauexample-1.png)<!-- -->
 
 
 ## Logistic
@@ -125,7 +125,7 @@ ggplot(data.frame(x = c(1, 3000)), aes(x=x)) +
   theme_bw()
 ```
 
-![](Figs/logistic example-1.png)<!-- -->
+![](Figs/logisticexample-1.png)<!-- -->
 
 
 ## Modified Gompertz Fit with Lag
@@ -152,7 +152,7 @@ ggplot(data.frame(x = c(1, 3000)), aes(x=x)) +
   theme_bw()
 ```
 
-![](Figs/mod gompertz example-1.png)<!-- -->
+![](Figs/modgompertzexample-1.png)<!-- -->
 
 # XXXXXXXXX
 
