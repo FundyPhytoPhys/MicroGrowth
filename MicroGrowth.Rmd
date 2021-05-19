@@ -205,7 +205,6 @@ ggplot(data.frame(x = c(1, 3000)), aes(x=x)) +
   theme_bw()
 ```
 
-# XXXXXXXXX
 
 # Materials and Methods 
 We grow cultures. To compare results across cultures we want to fit the growth data with models to get fitted parameters.
@@ -578,8 +577,6 @@ colony_modgompertzlag %>%
   mutate_if(is.numeric, round, digits = 2)
 ```
 
-
-# XXXXXX
 
 ## Compare Linear, Exponential, and Logistic Models using ANOVA
 Doug to implement if feasible;  too slow, too long

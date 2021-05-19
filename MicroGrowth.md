@@ -206,7 +206,6 @@ ggplot(data.frame(x = c(1, 3000)), aes(x=x)) +
 
 ![](Figs/modgompertzexample-1.png)<!-- -->
 
-# XXXXXXXXX
 
 # Materials and Methods 
 We grow cultures. To compare results across cultures we want to fit the growth data with models to get fitted parameters.
@@ -710,8 +709,6 @@ colony_modgompertzlag %>%
 ## # … with 3 more variables: std.error <dbl>, statistic <dbl>, p.value <dbl>
 ```
 
-
-# XXXXXX
 
 ## Compare Linear, Exponential, and Logistic Models using ANOVA
 Doug to implement if feasible;  too slow, too long
