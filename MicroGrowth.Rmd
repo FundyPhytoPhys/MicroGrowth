@@ -169,6 +169,21 @@ ggplot(data.frame(x = c(1, 3000)), aes(x=x)) +
 
 ```
 
+### Logistic Zavrel example
+```{r logisticzavrelexample}
+#an alternate formulation from T. Zavrel; possibly identical to above
+logistic_zavrel_eqn <- function(x, Intercept, Max, r){(Intercept*Max)/(Intercept + ((Max - Intercept) * exp(-r*x)))
+}
+
+logistic_zavrel_eqn_test <- function(x, Intercept = 5, Max = 10000, r = 0.005){(Intercept*Max)/(Intercept + ((Max - Intercept) * exp(-r*x)))
+}
+
+ggplot(data.frame(x = c(1, 3000)), aes(x=x)) + 
+  stat_function(fun = logistic_zavrel_eqn_test) +
+  labs(title = "Logistic Zavrel example") +
+  theme_bw()
+
+```
 
 ## Modified Gompertz Fit with Lag
 Gompertz equations [@zwieteringModelingBacterialGrowth1990] have shapes similar to Logistic fits but are more readily modified to include 'lag' as a parameter for an initial time period over which cell count does not (measurably) increase.
@@ -617,14 +632,13 @@ ClassDataPlot <- ClassData %>%
 
 ```
 
-# Exploratory plot of all combinations of substrate and treatment run by the class.
 
+## Fit logistic model to pooled class data, nested by Substrate and Treatment
 ```{r nestclassdatasubstratetreatment, message = FALSE}
 Class_nest <- as_tibble(ClassData) %>%
   nest(data = c(Temp_C, Initials_4letter, YYYYMMDDHHMM, Areamm2, lnAreaNorm, ehours, Colonies))
 ```
 
-## Fit logistic model to pooled class data, nested by Substrate and Treatment
 Some data 'nests' have too little data to fit or too little variation in the data to support a valid fit.  The range of minimum and maximum values across different Substrate/Treatment 'nests' also makes it difficult to assign starting, minimum and maximum values for parameters.
 Doug added 'possibly' as an error catch that allows the fit of nests to proceed even if one nest is unable to be fit.
 ```{r logmodelclass, message = FALSE}
