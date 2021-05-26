@@ -171,7 +171,7 @@ ggplot(data.frame(x = c(1, 3000)), aes(x=x)) +
 ```
 
 ### Logistic Zavrel example
-An alternate logistic formulation [@zwieteringModelingBacterialGrowth1990]; possibly identical to above
+An alternate logistic formulation [@zavrelMonitoringFitnessProductivity2021]; possibly identical to above
 ```{r logisticzavrelexample}
 
 logistic_zavrel_eqn <- function(x, Intercept, Max, r){(Intercept*Max)/(Intercept + ((Max - Intercept) * exp(-r*x)))
