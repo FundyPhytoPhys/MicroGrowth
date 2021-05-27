@@ -5,7 +5,7 @@ author:
 - Carlie Barnhill
 - Max Berthold
 - Douglas A. Campbell
-date: "`r format(Sys.Date())`"
+date: "2021-05-27"
 output:
   html_document:
     code_folding: hide
@@ -15,10 +15,7 @@ output:
     toc_float: TRUE
 ---
 
-```{r setup, include = FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE)
-knitr::opts_chunk$set(fig.path='Figs/')
-```
+
 
 # Introduction
 
@@ -26,7 +23,8 @@ knitr::opts_chunk$set(fig.path='Figs/')
 
 ## Load Libraries and set project variables
 
-```{r load libraries}
+
+```r
 # libraries; Note check actual dependencies
 library(tidyverse)
 library(lubridate)
@@ -41,7 +39,8 @@ library(zoo)
 #library(dplyr)
 ```
 
-```{r set project variables}
+
+```r
 #"..", takes up a level in the directory path
 Project <- "PICO"
 FittedData <- file.path("FittedData", "ColourLogGrowthFits")
@@ -52,10 +51,10 @@ ComparisonData <- file.path("ComparisonColourData")
 
 #set the hour of day at which photoperiod starts for later generation of ToD Time of Day
 StartHour <- 6
-
 ```
 
-```{r set colours}
+
+```r
 MyWavelengths = c(405, 450, 475, 530, 615, 660, 730, "WW")
 MCMIXColours = c("violet", "darkblue", "dodgerblue", "green","orange","red","purple", "black")
 
@@ -63,42 +62,56 @@ names(MCMIXColours) <- MyWavelengths
 MCMIXColours
 ```
 
+```
+##          405          450          475          530          615          660 
+##     "violet"   "darkblue" "dodgerblue"      "green"     "orange"        "red" 
+##          730           WW 
+##     "purple"      "black"
+```
+
 ## List previously processed data
 
 Note: Split files will not be correct for Par_ue, but actinic_par should be OK Fix: replace MetaData Par_ue with max(actinic_par) for each file or split file
 
-```{r previous ProcessedData}
+
+```r
 FittedFiles <- list.files(path = FittedData, pattern = Project, full.names = TRUE)
 
 FittedFiles
+```
+
+```
+## [1] "FittedData/ColourLogGrowthFits/20200124_PICO_MCMIX004_RUN1_FitDataNestGrowth.Rds"    
+## [2] "FittedData/ColourLogGrowthFits/20200124_PICO_MCMIX004_RUN1_ProcessDataNestGrowth.Rds"
 ```
 
 # Read .Rds, Summarize, Combine to single data frame
 
 ## Create function using to read in .Rds, adding source filename as a column
 
-```{r readRDS_plus}
+
+```r
 readRDS_plus <- function(Flnm){readRDS(file = Flnm) %>%
     mutate(Filename = Flnm)
 }
 ```
 
 ## Read in FittedFiles .Rds
-```{r read selected FittedData}
 
+```r
 # TestData <- readRDS_plus(Flnm = file.path("../ProcessedData/LogGrowthFits/20200731_PICO_MCMIX004_RUN17_ProcessDataNestGrowth.Rds"))
  
 #include "OD720_logistic","deltaOD_logistic" if we need to regenerate predictions for plotting?                                        
 LogFitsData <-  FittedFiles %>%
     map_df(~readRDS_plus(Flnm = .)) %>%
     select(-c("PrimaryOperator", "Motivation", "doi", "SourceSalinity", "EndDate", "Salinity",  "InocpH", "data", "OD720_logistic","deltaOD_logistic"))
-
 ```
 
 
 # Plot growth rates for each combination of Tube x Filename
 
-```{r plotgrowthrates}
+
+```r
 OD720_unnest <- LogFitsData %>%
 unnest(cols = c(OD720_logistic_tidied), names_sep = "_") %>%
   pivot_wider(names_from =  OD720_logistic_tidied_term, values_from = c(OD720_logistic_tidied_estimate, OD720_logistic_tidied_std.error, OD720_logistic_tidied_statistic, OD720_logistic_tidied_p.value), names_sep = "_")  %>%
@@ -126,7 +139,11 @@ OD720SummaryGrowthPlot <- OD720_unnest %>%
   labs(colour = "Actinic PAR (nm)")
 
 OD720SummaryGrowthPlot
+```
 
+![](Figs/plotgrowthrates-1.png)<!-- -->
+
+```r
 ODDelta_unnest <- LogFitsData %>%
 unnest(cols = c(deltaOD_logistic_tidied), names_sep = "_") %>%
   pivot_wider(names_from =  deltaOD_logistic_tidied_term, values_from = c(deltaOD_logistic_tidied_estimate, deltaOD_logistic_tidied_std.error, deltaOD_logistic_tidied_statistic, deltaOD_logistic_tidied_p.value), names_sep = "_")  %>%
@@ -155,20 +172,19 @@ deltaODSummaryGrowthPlot <- ODDelta_unnest %>%
   labs(colour = "Actinic PAR (nm)")
 
 deltaODSummaryGrowthPlot
-
-
 ```
 
-```{r save summary growth plots}
+![](Figs/plotgrowthrates-2.png)<!-- -->
 
+
+```r
 # ggsave(file = file.path(PlotsPath, paste("OD720SummaryGrowthPlot",".png",sep = "")), plot = OD720SummaryGrowthPlot, device = NULL, scale = 1, height=15, width= 25, units = c("cm"),dpi = 300, limitsize = TRUE)
 # 
 # ggsave(file = file.path(PlotsPath, paste("deltaODSummaryGrowthPlot",".png",sep = "")), plot = deltaODSummaryGrowthPlot, device = NULL, scale = 1, height=15, width= 25, units = c("cm"),dpi = 300, limitsize = TRUE)
-
-
 ```
 
-```{r lndeltavslnOD720growth rates}
+
+```r
 OD720_unnest_test <- OD720_unnest %>%
   select(-c("OD720_logistic_param", "deltaOD_logistic_tidied" ))
          
@@ -202,17 +218,20 @@ EvenGrowthLogPlot <- EvenGrowthLog %>%
 EvenGrowthLogPlot
 ```
 
+![](Figs/lndeltavslnOD720growth rates-1.png)<!-- -->
 
-```{r save Even Growth Plots}
+
+
+```r
 # ggsave(file = file.path(PlotsPath, paste("EvenGrowthLogPlot",".png",sep = "")), plot = EvenGrowthLogPlot, device = NULL, scale = 1, height=15, width= 25, units = c("cm"),dpi = 300, limitsize = TRUE)
-
 ```
 
 
 
 Combine separate growth estimates from mean and s.d. <https://www.statstodo.com/CombineMeansSDs_Pgm.php>
 
-```{r combine estimates by condition}
+
+```r
 # SelectedDataGrowthRates %>%
 #   group_by(Par_ue, Strain, O2, WL) %>%
 ```
