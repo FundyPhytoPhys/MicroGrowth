@@ -373,9 +373,9 @@ MyData_nest <- as_tibble(MyData) %>%
 
 ## Fit and plot treatment colony specific linear growth trajectories using nest purrr:map & broom::augment
 This chunk uses code from the 'Tidyverse' purrr package.
-R will iteratively vary the parameters of the fitting equations to minimize the residuals (discrepancies) between the data points in a given nested and the points predicted by the model with a given set of parameters.
+R will iteratively vary the parameters of the fitting equations to minimize the residuals (discrepancies) between the data points in a given nest and the points predicted by the model with a given set of parameters.
 If that fails, R returns a 'null' result for the fit for the given nest, and proceeds to attempt the next nest of data.
-The nlsLM fitting function requires a 'list' of 'start' values for each fitted parameter.
+The nlsLM fitting function requires a vector of 'start' values for each fitted parameter.
 nlsLM optionally accepts vectors of 'lower' and 'upper' boundary values for each fitted parameter.
 Avoid using 'lower' and 'upper' boundaries when feasible, because they can lead to erroneous fits when the fitting iterations hit a boundary for a fitted parameter and then sit there.
 Sometimes with noisy data, setting 'lower' and 'upper' boundaries can help constrain the fit.
