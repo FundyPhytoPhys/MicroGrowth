@@ -8,14 +8,17 @@ output:
     keep_md: yes
     fig_caption: yes
 bibliography: MicrobialGrowthFitting.bib
-csl: plos-one.csl
+
 ---
+
+csl: plos-one.csl
 # Acknowledgements
 This report uses test data accumulated by the BIOL2201 Class, 2021, Mount Allison University under the guidance of L. Barney.
 
 # Run These Chunks First
 
 ```{r global_options}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
 knitr::opts_chunk$set(fig.path='Figs/')
 ```
 
@@ -97,7 +100,9 @@ linear_eqn <- function(x, m, Intercept){(x * m) + Intercept
 linear_eqn_test <- function(x, m = 0.005, Intercept = 5){x*m + Intercept
 }
 
-ggplot(data.frame(x=c(1, 3000)), aes(x=x)) + 
+TestFrame <- data.frame(x = c(1,1000))
+
+ggplot(TestFrame, aes(x=x)) + 
   stat_function(fun = linear_eqn_test) +
   labs(title = "Linear example") +
   theme_bw()
@@ -119,7 +124,7 @@ exp_eqn <- function(x, mu, Intercept){Intercept *exp(x*mu)
   
 exp_eqn_test <- function(x, mu = 0.005, Intercept = 5){Intercept *exp(x*mu)
 }
-ggplot(data.frame(x=c(1, 3000)), aes(x=x)) + 
+ggplot(TestFrame, aes(x=x)) + 
   stat_function(fun = exp_eqn_test) +
   labs(title = "Exponential example") +
   theme_bw()
@@ -138,7 +143,7 @@ exp_rise_plat_eqn <- function(x, mu = 0.005, Intercept){Max - ((Max-Intercept)*e
 
 exp_rise_plat_eqn_test <- function(x, mu = 0.005, Intercept = 0.5, Max = 1000){Max - ((Max-Intercept)*exp(x*-mu))
 }
-ggplot(data.frame(x=c(1, 3000)), aes(x=x)) + 
+ggplot(TestFrame, aes(x=x)) + 
   stat_function(fun = exp_rise_plat_eqn_test) +
   labs(title = "Exponential Rise towards Plateau example") +
   theme_bw()
@@ -163,7 +168,7 @@ logistic_eqn <- function(x, mu, Intercept, Max){(Max*Intercept*exp(mu*x))/(Max +
 logistic_eqn_test <- function(x, mu = 0.005, Intercept = 5, Max = 10000){(Max*Intercept*exp(mu*x))/(Max + (Intercept*(exp(mu*x)-1)))
 }
 
-ggplot(data.frame(x = c(1, 3000)), aes(x=x)) + 
+ggplot(TestFrame, aes(x=x)) + 
   stat_function(fun = logistic_eqn_test) +
   labs(title = "Logistic example") +
   theme_bw()
@@ -179,9 +184,14 @@ logistic_zavrel_eqn <- function(x, Intercept, Max, r){(Intercept*Max)/(Intercept
 
 logistic_zavrel_eqn_test <- function(x, Intercept = 5, Max = 10000, r = 0.005){(Intercept*Max)/(Intercept + ((Max - Intercept) * exp(-r*x)))
 }
-
-ggplot(data.frame(x = c(1, 3000)), aes(x=x)) + 
+                        
+ggplot(TestFrame, aes(x=x)) + 
   stat_function(fun = logistic_zavrel_eqn_test) +
+  labs(title = "Logistic Zavrel example") +
+  theme_bw()
+
+ggplot(TestFrame, aes(x=x)) + 
+  stat_function(fun = function(x, Intercept = 5, Max = 10000, r = 0.005){(Intercept*Max)/(Intercept + ((Max - Intercept) * exp(-r*x)))}) +
   labs(title = "Logistic Zavrel example") +
   theme_bw()
 
@@ -213,10 +223,10 @@ ModGompertzEqn <- function(Amax,Amu,Lag,x){(Amax*(exp(-exp((Amu*exp(1))/Amax*(La
 mod_gomp_lag_eqn <-  function(x, Amax,Amu,Lag){(Amax*(exp(-exp((Amu*exp(1))/Amax*(Lag-x)+1))))
   }
 
-mod_gomp_lag_eqn_test <-  function(x, Amax = 1000/10, Amu  = 0.5, Lag = 1000 ){(Amax*(exp(-exp((Amu*exp(1))/Amax*(Lag-x)+1))))
+mod_gomp_lag_eqn_test <-  function(x, Amax = 1000/10, Amu  = 0.5, Lag = 200 ){(Amax*(exp(-exp((Amu*exp(1))/Amax*(Lag-x)+1))))
   }
 
-ggplot(data.frame(x = c(1, 3000)), aes(x=x)) + 
+ggplot(TestFrame, aes(x=x)) + 
   stat_function(fun = mod_gomp_lag_eqn_test) +
   labs(title = "Modified Gompertz with Lag example") +
   theme_bw()
@@ -232,45 +242,19 @@ The import function may open a Google log in to get an authorization code in a s
 See next chunk for manual alternative if needed; download .csv from GoogleSheet, then upload the .csv to RStudio.cloud.
 
 ```{r import data from googlesheet, message = FALSE}
-gs4_deauth()
-ColonyData <- read_sheet(ColonyGoogleSheet)
-
-ColonyData
+# gs4_deauth()
+# ColonyData <- read_sheet(ColonyGoogleSheet)
+# 
+# ColonyData
 ```
-
-
-```{r read data}
-# ImportGrowth <- readRDS(file = file.path(DataFolder,paste(Project,FileIDSingle, "GrowthLong.Rds", sep  = "_"),fsep = .Platform$file.sep))
-# 
-# #https://stackoverflow.com/questions/64111558/passing-variables-into-the-names-glue-parameter-of-tidyrpivot-wider
-# 
-# GrowthLong <- ImportGrowth %>%
-#   filter(Wavelength %in% ChlAb) %>%
-#   pivot_wider(id_cols = -c(OD, AvBlankOD), names_from = Wavelength, values_from = CorrOD, names_glue = "nm_{Wavelength}") %>% 
-#   mutate("680min720" = nm_680 - nm_720, "680min750" = nm_680 - nm_750) %>%
-#   pivot_longer(cols = c(nm_680, nm_720, nm_750, "680min720", "680min750"), values_to = "CorrOD", names_to = "Wavelength") %>%
-#   mutate(Wavelength = str_remove(Wavelength, "nm_")) %>%
-#   mutate(CorrOD = if_else(CorrOD < 0.001, 0.001, CorrOD)) #experimentally test to set values below 0.001 to 0.001 (~detection limit device)
-# 
-# 
-# GrowthLong <- GrowthLong %>%
-#   group_by(!!sym(NestVar), !!sym(RowVar2), !!sym(ColVar), !!sym(NestVarII), Wavelength, exp_date) %>%
-#   #mutate(OD = OD - 0.08) #rough approach to correct for media blank, replace with true media-blank once script runs
-#   mutate(logODminOD = log(CorrOD/min(CorrOD))) %>% #problem with log leads to NaN, when value is very small
-#   ungroup()
-
-
-```
-
-
 
 Alternative
-Doug: Manually Download Data from Googlesheets as .csv.
-Doug: Manually Upload .csv to folder containing .Rproj
-Read in .csv into ColonyData object.min
+Manually Download Data from Googlesheets as .csv.
+Manually Upload .csv to folder containing .Rproj
+Read in .csv into ColonyData object
 ```{r read local data, message = FALSE}
-# ColonyData <- read_csv("MicroColonyData2021.csv", col_names = TRUE)
-# ColonyData
+ColonyData <- read_csv("MicroColonyData2021.csv", col_names = TRUE)
+ColonyData
 ```
 
 
@@ -307,7 +291,7 @@ MyData <- MyData %>%
 
 #ln(Area/minArea)
 MyData <- MyData %>%
-  group_by(Substrate, Treatment) %>%
+  group_by(Substrate, Treatment, Colonies) %>%
   mutate(lnAreaNorm = log(Areamm2/min(Areamm2, na.rm = TRUE))) %>%
   filter(!is.na(Areamm2)) %>%
   ungroup()
@@ -315,15 +299,16 @@ MyData <- MyData %>%
 
 
 # Results  
-Upload representative colony images to your RStudio.cloud.
-Add representative images of your colony growth over time to your .Rmd.
-Will work with .JPG and .png; not sure about other graphic formats.
+Upload representative images to folder containing .Rproj.
+Add representative images to your .Rmd.
+Will work with .jpg and .png; not sure about other graphic formats.
+May not succeed embedding image to .md file.
 ```{r examplecolonies, fig.align = 'centre', out.width='50%', out.height='70%'}
 knitr::include_graphics(file.path("202101240946.jpg"))
 ```
 
 
-## Example of Mould Colony on Naan, 202101240946.JPG
+## Example of Mould Colony on Naan, 202101240946.jpg
 
 ## Plot the data with a separate facet for each colony.
 Or, plot the data with all colonies under a common combination of substrate and treatment in a single panel.
@@ -349,67 +334,6 @@ MyData %>%
 
 ```
 
-
-```{r preplot}
-  # filter(strain %in% Strains) %>%
-  # filter(exp_date %in% StartDate) %>%
-  # filter(Wavelength %in% Wavelength_nm) %>%
-  # #filter(tissue_treated_plate == TissueTreated) %>%
-  # #filter(media == Media) %>%
-  # filter(SourceSal == source_salinity) %>%
-  # ggplot()+
-  # geom_point(aes(x = E_hours, y = !!sym(FitVar), colour = as.factor(Wavelength))) +
-  # coord_cartesian(ylim = c(0, 2)) +
-  # facet_grid(cols = vars(!!sym(RowVar2)), rows = vars(!!sym(NestVar))) +
-  #   theme_bw() +
-  # labs(caption = paste(Wavelength_nm, "nm; PAR", Par_ue, "uE"))
-
-```
-
-```{r noise filtering}
-#set filtering variables at top
-#pick filtering option as either a simple threshold or a factor change between OD and OD_lead
-# 
-# Screen_OD <- 2
-# 
-# FitData <- as_tibble(GrowthLong) %>%
-#   filter(strain %in% Strains) %>%
-#   filter(exp_date %in% StartDate) %>% #if multiple dates are applied, use %in% instead of ==
-#   filter(Wavelength %in% Wavelength_nm) %>%
-#   #filter(tissue_treated_plate == TissueTreated) %>%
-#   #filter(media == Media) %>%
-#   filter(source_salinity == SourceSal) %>%
-#   group_by(well) %>%
-#   arrange(well, E_hours) %>%
-#   mutate(OD_lead = lead(CorrOD)) %>%
-#   #filter(CorrOD < (OD_lead / Screen_OD)) %>%
-#   filter(CorrOD < Screen_OD) %>%
-#   filter(E_hours < StopHours)
-# 
-# test <- FitData %>%
-#   group_by(!!sym(NestVar), !!sym(RowVar2), !!sym(RowVar), !!sym(ColVar), Wavelength, exp_date) %>%
-#   mutate(LagSeed = E_hours[which.min(CorrOD)])
-  
-```
-
-
-
-```{r filterplot}
-# FitData %>%
-#   filter(strain %in% Strains) %>%
-#   filter(exp_date %in% StartDate) %>%
-#   filter(Wavelength %in% Wavelength_nm) %>%
-#   #filter(tissue_treated_plate == TissueTreated) %>%
-#   filter(media == Media) %>%
-#   ggplot()+
-#   geom_point(aes(x = E_hours, y = !!sym(FitVar), colour = as.factor(Wavelength))) +
-#   coord_cartesian(ylim = c(0, 2)) +
-#   facet_grid(cols = vars(!!sym(RowVar2)), rows = vars(!!sym(NestVar))) +
-#     theme_bw() +
-#   labs(caption = paste(Wavelength_nm, "nm; PAR", Par_ue, "uE"))
-```
-
-
 # Colony Size vs. Hours Elapsed since First Measure.
 
 Plot the ln(Areamm2) to check whether growth follows an exponential pattern
@@ -430,6 +354,17 @@ MyData %>%
 
 Each user measured multiple colonies, possibly on multiple substrates with multiple treatments.
 We create a 'nested' data frame where all data in columns YYYYMMDDHHMM, Areamm2, ehours, from a single user, a single colony, on a single substrate, with a single treatment are 'nested' together for later fitting of growth curves.
+
+
+
+```{r noise filtering}
+
+# test <- FitData %>%
+#   group_by(!!sym(NestVar), !!sym(RowVar2), !!sym(RowVar), !!sym(ColVar), Wavelength, exp_date) %>%
+
+```
+
+
 ```{r nest data for curve fitting, message = FALSE}
 MyData_nest <- as_tibble(MyData) %>%
   #filter(Treatment != "Hot") %>%
@@ -437,26 +372,68 @@ MyData_nest <- as_tibble(MyData) %>%
 ```
 
 ## Fit and plot treatment colony specific linear growth trajectories using nest purrr:map & broom::augment
-This chunk uses complicated code from the 'Tidyverse' package.
-R will iteratively vary the parameters of the fitting equations to minimize the residuals (discrepancies) between the data points (nested) and the points predicted by the model with a given set of parameters.
-```{r colonylineargrowth, message = FALSE}
+This chunk uses code from the 'Tidyverse' purrr package.
+R will iteratively vary the parameters of the fitting equations to minimize the residuals (discrepancies) between the data points in a given nested and the points predicted by the model with a given set of parameters.
+If that fails, R returns a 'null' result for the fit for the given nest, and proceeds to attempt the next nest of data.
+The nlsLM fitting function requires a 'list' of 'start' values for each fitted parameter.
+nlsLM optionally accepts vectors of 'lower' and 'upper' boundary values for each fitted parameter.
+Avoid using 'lower' and 'upper' boundaries when feasible, because they can lead to erroneous fits when the fitting iterations hit a boundary for a fitted parameter and then sit there.
+Sometimes with noisy data, setting 'lower' and 'upper' boundaries can help constrain the fit.
+Sometimes there are mechanistic reasons to constrain the range for fitted values; as for example setting 0 as the minimum value for a lag phase.
+
+```{r selfseeding fitting development, message = FALSE}
 #define starting, lower, and upper bounds for fit parameters to constrain linear equations
-linear_eqn_start <- list(m = 1, Intercept = min(MyData$Areamm2, na.rm = TRUE))
-linear_eqn_lower <- c(0,0)
+# linear_eqn_start <- list(m = 1, Intercept = min(MyData$Areamm2, na.rm = TRUE))
+# linear_eqn_lower <- c(0,0)
+# 
+# linear_eqn_upper <- c(max(MyData$Areamm2, na.rm = TRUE), max(MyData$Areamm2, na.rm = TRUE))
 
-linear_eqn_upper <- c(max(MyData$Areamm2, na.rm = TRUE), max(MyData$Areamm2, na.rm = TRUE))
+#replaced by dynamic generation of starting, lower and upper parameter bounds based upon nested data
+# ##Succeeded in extracting min value from data; on the way to start values
+# colony_lin3 <- MyData_nest %>% 
+#   mutate(
+#    test =  map(data, `[[`, c("Areamm2")),
+#    test2 = map(test, min, na.rm = TRUE)
+#   )
 
-#, lower = linear_eqn_lower, upper = linear_eqn_upper
+#Combine map with map_dbl to get min & max & slope
+#Areamm2 is the Y axis fitting variable in this example
+#max_x is the maximum X axis value
+# colony_lin4 <- MyData_nest %>% 
+#   mutate(
+#    min_y =  map_dbl(map(data, `[[`, c("Areamm2")), min, na.rm = TRUE),
+#    max_y = map_dbl(map(data, `[[`, c("Areamm2")), max, na.rm = TRUE),
+#    max_x = map_dbl(map(data, `[[`, c("ehours")), max, na.rm = TRUE),
+#    slope = (max_y - min_y)/max_x,
+#    mu_guess = (log(max_y) - log(min_y))/max_x
+#   )
+# 
+# colony_lin4
 
-colony_lin  <- MyData_nest %>% 
+ 
+#Need to use pmap to step through data nests & start values in parallel
+#For pmap need to refer to list elements with ..1, ..2, ..3 etc. in correct order
+#https://stackoverflow.com/questions/56157959/r-why-is-pmap-not-working-while-map2-does
+```
+
+
+```{r colonylineargrowth, message = FALSE}
+
+#nest-specific start for nlsLM
+Colony_lin  <- MyData_nest %>% 
   mutate(
-  fit = map(data, possibly(~nlsLM(Areamm2 ~ linear_eqn(x = ehours, m, Intercept), data = .x, start = linear_eqn_start), otherwise = NULL)),
-  predict = map(fit, possibly(augment, otherwise = NULL)),
-  tidied =  map(fit, possibly(tidy, otherwise = NULL)),
-  param = map(fit, possibly(glance, otherwise = NULL))
-  )
+    min_y =  map_dbl(map(data, `[[`, c("Areamm2")), min, na.rm = TRUE),
+    max_y = map_dbl(map(data, `[[`, c("Areamm2")), max, na.rm = TRUE),
+    max_x = map_dbl(map(data, `[[`, c("ehours")), max, na.rm = TRUE),
+    slope = (max_y - min_y)/max_x,
+    fit = pmap(list(data, slope, min_y), possibly(~nlsLM(Areamm2 ~ linear_eqn(x = ehours, m, Intercept), data = ..1, start = c(m = ..2, Intercept = ..3)), otherwise = NULL)),
+    predict = map(fit, possibly(augment, otherwise = NULL)),
+    tidied =  map(fit, possibly(tidy, otherwise = NULL)),
+    param = map(fit, possibly(glance, otherwise = NULL))
+  ) 
 
-colony_lin %>%
+
+Colony_lin %>%
   unnest(predict)  %>% 
   ggplot() +  
   geom_line(aes(x = ehours, y = .fitted), size = 0.5) +
@@ -470,7 +447,7 @@ colony_lin %>%
        caption = "Linear line, residuals dashed red line")
 
 #parameters of colony specific linear fits
-colony_lin %>% 
+Colony_lin %>% 
   unnest(tidied) %>%
   select(-c(data, fit, predict, param)) %>%
   mutate_if(is.numeric, round, digits = 2)
@@ -478,22 +455,20 @@ colony_lin %>%
 
 ## Fit and plot treatment colony specific exponential growth trajectories using nest purrr:map & broom::augment
 ```{r colonyexponentialgrowth, message = FALSE}
-#define starting, lower, and upper bounds for fit parameters to constrain exponential fit
-exp_eqn_start <- list(mu = 0.01, Intercept = min(MyData$Areamm2, na.rm = TRUE))
-exp_eqn_lower <- c(0,0)
-
-exp_eqn_upper <- c(1, max(MyData$Areamm2, na.rm = TRUE))
-#, lower = exp_eqn_lower, upper = exp_eqn_upper
-
-colony_exp <- MyData_nest %>% 
+#nest-specific start for nlsLM
+Colony_exp  <- MyData_nest %>% 
   mutate(
-  fit = map(data, possibly(~nlsLM(Areamm2 ~ exp_eqn(x = ehours, mu, Intercept), data = .x, start = exp_eqn_start), otherwise = NULL)),
-  predict = map(fit, possibly(augment, otherwise = NULL)),
-  tidied =  map(fit, possibly(tidy, otherwise = NULL)),
-  param = map(fit,possibly(glance, otherwise = NULL))
-  )
+    min_y =  map_dbl(map(data, `[[`, c("Areamm2")), min, na.rm = TRUE),
+    max_y = map_dbl(map(data, `[[`, c("Areamm2")), max, na.rm = TRUE),
+    max_x = map_dbl(map(data, `[[`, c("ehours")), max, na.rm = TRUE),
+    mu_guess = (log(max_y) - log(min_y))/max_x,
+    fit = pmap(list(data, mu_guess, min_y), possibly(~nlsLM(Areamm2 ~ exp_eqn(x = ehours, mu, Intercept), data = ..1, start = c(mu = ..2, Intercept = ..3)), otherwise = NULL)),
+    predict = map(fit, possibly(augment, otherwise = NULL)),
+    tidied =  map(fit, possibly(tidy, otherwise = NULL)),
+    param = map(fit, possibly(glance, otherwise = NULL))
+  ) 
 
-colony_exp %>%
+Colony_exp %>%
   unnest(predict)  %>% 
   ggplot() +  
   geom_line(aes(x = ehours, y = .fitted), size = 0.5) +
@@ -507,7 +482,7 @@ colony_exp %>%
        caption = "Exponential line, residuals dashed red line")
 
 #parameters of colony specific exponential fits
-colony_exp %>% 
+Colony_exp %>% 
   unnest(tidied) %>%
   select(-c(data, fit, predict, param)) %>%
   mutate_if(is.numeric, round, digits = 2)
@@ -515,24 +490,21 @@ colony_exp %>%
 
 ## Fit and plot treatment colony specific logistic growth trajectories using nest purrr:map & broom::augment
 ```{r colonylogisticgrowth, message = FALSE}
-#define starting, lower, and upper bounds for fit parameters to constrain logistic fit
-logistic_eqn_start<-list(mu = 0.05, Intercept = min(MyData$Areamm2, na.rm = TRUE), Max = max(MyData$Areamm2, na.rm = TRUE))
-
-logistic_eqn_lower <- c(0.001, (min(MyData$Areamm2, na.rm = TRUE) * 0.1), (max(MyData$Areamm2, na.rm = TRUE) * 0.5))
-
-logistic_eqn_upper <- c(1, (min(MyData$Areamm2, na.rm = TRUE) * 4), (max(MyData$Areamm2, na.rm = TRUE) * 2))
-
-#, lower = logistic_eqn_lower, upper = logistic_eqn_upper
-colony_log <- MyData_nest  %>% 
-  #filter(Colonies == "col1mm2") %>%
+#nest-specific start for nlsLM
+Colony_log  <- MyData_nest %>% 
   mutate(
-  fit = map(data, possibly(~nlsLM(Areamm2 ~ logistic_eqn(x = ehours, mu, Intercept, Max), data = .x, start = logistic_eqn_start), otherwise = NULL)),
-  predict = map(fit, possibly(augment, otherwise = NULL)),
-  tidied =  map(fit, possibly(tidy, otherwise = NULL)),
-  param = map(fit,possibly(glance, otherwise = NULL))
+    min_y =  map_dbl(map(data, `[[`, c("Areamm2")), min, na.rm = TRUE),
+    max_y = map_dbl(map(data, `[[`, c("Areamm2")), max, na.rm = TRUE),
+    max_x = map_dbl(map(data, `[[`, c("ehours")), max, na.rm = TRUE),
+    mu_guess = (log(max_y) - log(min_y))/max_x,
+    fit = pmap(list(data, mu_guess, min_y, max_y), possibly(~nlsLM(Areamm2 ~ logistic_eqn(x = ehours, mu, Intercept, Max), data = ..1, start = c(mu = ..2, Intercept = ..3, Max = ..4)), otherwise = NULL)),
+    predict = map(fit, possibly(augment, otherwise = NULL)),
+    tidied =  map(fit, possibly(tidy, otherwise = NULL)),
+    param = map(fit, possibly(glance, otherwise = NULL))
   )
+    
 
-colony_log %>% 
+Colony_log %>% 
   unnest(predict) %>%
   ggplot() +  
   geom_line(aes(x = ehours, y = .fitted), size = 0.5) +
@@ -547,7 +519,7 @@ colony_log %>%
 
 
 #parameters of colony specific logistic fits
-colony_log %>%
+Colony_log %>%
   unnest(tidied) %>%
   select(-c(data, fit, predict, param)) %>%
   mutate_if(is.numeric, round, digits = 2)
@@ -558,23 +530,28 @@ colony_log %>%
 ## Fit and plot treatment colony specific modified Gompertz with lag growth trajectories using nest purrr:map & broom::augment.  
 Note fit is run on lnAreaNorm
 ```{r modgompertzlaggrowth, message = FALSE}
-mod_gomp_lag_eqn_start <- list(Amax= max(MyData$lnAreaNorm, na.rm = TRUE), Amu = 0.005, Lag = 10)
+#nest-specific start for nlsLM
+#not sure about how to start lag
 
-mod_gomp_lag_eqn_lower <- c((max(MyData$Areamm2, na.rm = TRUE) * 0.25), 0.001, 0)
-mod_gomp_lag_eqn_upper <- c((max(MyData$Areamm2, na.rm = TRUE) * 2), 0.1, max(MyData$ehours, na.rm = TRUE))
+#intermediate steps
+    # Areammout = map(data, `[[`, c("Areamm2")),
+    # ehoursout = map(data, `[[`, c("ehours")),
+    # lag_guess1 = map2_dbl(.x = ehoursout, .y = Areammout , ~(.x[which.min(.y)])),
 
-logistic_eqn_upper <- c(1, (min(MyData$Areamm2, na.rm = TRUE) * 4), (max(MyData$Areamm2, na.rm = TRUE) * 2))
-
-colony_modgompertzlag <- MyData_nest  %>% 
-  #filter(Colonies == "col1mm2") %>%
+Colony_modgompertzlag  <- MyData_nest %>% 
   mutate(
-  fit = map(data, possibly(~nlsLM(lnAreaNorm ~ mod_gomp_lag_eqn(x = ehours, Amax, Amu, Lag), data = .x, start =  mod_gomp_lag_eqn_start), otherwise = NULL)),
-  predict = map(fit, possibly(augment, otherwise = NULL)),
-  tidied =  map(fit, possibly(tidy, otherwise = NULL)),
-  param = map(fit,possibly(glance, otherwise = NULL))
-  )
-
-colony_modgompertzlag %>% 
+    min_y =  map_dbl(map(data, `[[`, c("lnAreaNorm")), min, na.rm = TRUE),
+    max_y = map_dbl(map(data, `[[`, c("lnAreaNorm")), max, na.rm = TRUE),
+    max_x = map_dbl(map(data, `[[`, c("lnAreaNorm")), max, na.rm = TRUE),
+    mu_guess = (max_y - min_y)/max_x,
+    lag_guess = map2_dbl(.x = map(data, `[[`, c("ehours")), .y = map(data, `[[`, c("Areamm2")), ~(.x[which.min(.y)])),
+    fit = pmap(list(data, max_y, mu_guess, lag_guess), possibly(~nlsLM(lnAreaNorm ~ mod_gomp_lag_eqn(x = ehours, Amax, Amu, Lag), data = ..1, start = c(Amax = ..2, Amu = ..3, Lag = ..4), lower = c(Amax = 0, Amu = 0, Lag =0)), otherwise = NULL)),
+    predict = map(fit, possibly(augment, otherwise = NULL)),
+    tidied =  map(fit, possibly(tidy, otherwise = NULL)),
+    param = map(fit,possibly(glance, otherwise = NULL))
+    )
+               
+Colony_modgompertzlag %>% 
   unnest(predict) %>%
   ggplot() +  
   geom_line(aes(x = ehours, y = .fitted), size = 0.5) +
@@ -588,11 +565,12 @@ colony_modgompertzlag %>%
        caption = "Modified Gompertz with Lag, residuals dashed red line")
 
 #parameters of colony specific logistic fits
-colony_modgompertzlag %>%
+Colony_modgompertzlag %>%
   unnest(tidied) %>%
   select(-c(data, fit, predict, param)) %>%
   mutate_if(is.numeric, round, digits = 2)
 ```
+
 
 
 ## Compare Linear, Exponential, and Logistic Models using ANOVA
@@ -641,30 +619,22 @@ Class_nest <- as_tibble(ClassData) %>%
   nest(data = c(Temp_C, Initials_4letter, YYYYMMDDHHMM, Areamm2, lnAreaNorm, ehours, Colonies))
 ```
 
-Some data 'nests' have too little data to fit or too little variation in the data to support a valid fit.  The range of minimum and maximum values across different Substrate/Treatment 'nests' also makes it difficult to assign starting, minimum and maximum values for parameters.
+Some data 'nests' have too little data to fit or too little variation in the data to support a valid fit.
+Using nest-specific starting values helps.
 Doug added 'possibly' as an error catch that allows the fit of nests to proceed even if one nest is unable to be fit.
-```{r logmodelclass, message = FALSE}
-#define starting values for fit parameters to constrain logistic fit
-#logistic_eqn_start<-list(Max = max(ClassData$Areamm2, na.rm = TRUE), mu = 0.05, Intercept = min(ClassData$Areamm2, na.rm = TRUE))
-
-logistic_eqn_start<-list(mu = 0.05, Intercept = 1, Max = 300)
-
-#define lower, and upper bounds for fit parameters to constrain logistic fit
-#logistic_eqn_lower<-c(50,0.001,1)
-
-#logistic_eqn_upper<-c(1000,1,20)
-
-#fit a pooled model using the logistic equation nested by temp_C
-
-Class_log <- Class_nest %>%
+```{r lmodgompertzlagmodelclass, message = FALSE}
+Class_log  <- Class_nest %>% 
   mutate(
-   fit = map(data, possibly(~nlsLM(Areamm2 ~ logistic_eqn(x = ehours, mu, Intercept, Max), data = .x, start = logistic_eqn_start), otherwise = NULL)),
-  predict = map(fit, possibly(augment, otherwise = NULL)),
-  tidied =  map(fit, possibly(tidy, otherwise = NULL)),
-  param = map(fit, possibly(glance, otherwise = NULL))
+    min_y =  map_dbl(map(data, `[[`, c("Areamm2")), min, na.rm = TRUE),
+    max_y = map_dbl(map(data, `[[`, c("Areamm2")), max, na.rm = TRUE),
+    max_x = map_dbl(map(data, `[[`, c("ehours")), max, na.rm = TRUE),
+    mu_guess = (log(max_y) - log(min_y))/max_x,
+    fit = pmap(list(data, mu_guess, min_y, max_y), possibly(~nlsLM(Areamm2 ~ logistic_eqn(x = ehours, mu, Intercept, Max), data = ..1, start = c(mu = ..2, Intercept = ..3, Max = ..4)), otherwise = NULL)),
+    predict = map(fit, possibly(augment, otherwise = NULL)),
+    tidied =  map(fit, possibly(tidy, otherwise = NULL)),
+    param = map(fit, possibly(glance, otherwise = NULL))
   )
 
-# , lower = logistic_eqn_lower, upper = logistic_eqn_upper
 
 Class_log %>%
   unnest(predict) %>%
@@ -678,11 +648,47 @@ geom_line(aes(x = ehours, y = .resid, alpha = 0.1), linetype = "dashed", colour 
        title = "Colony Growth, Logistic Fits",
        caption = "Logistic line, residuals dashed red line, points data")
 
-#parameters of colony specific logistic fits
+#parameters of Colony specific logistic fits
 Class_log %>%
   unnest(tidied) %>%
   select(-c(data, fit, predict, param)) %>%
   mutate_if(is.numeric, round, digits = 2)
+```
+
+```{r modgompertzlagclass, message = FALSE}
+
+Class_modgompertzlag  <- Class_nest %>% 
+  mutate(
+    min_y =  map_dbl(map(data, `[[`, c("lnAreaNorm")), min, na.rm = TRUE),
+    max_y = map_dbl(map(data, `[[`, c("lnAreaNorm")), max, na.rm = TRUE),
+    max_x = map_dbl(map(data, `[[`, c("lnAreaNorm")), max, na.rm = TRUE),
+    mu_guess = (max_y - min_y)/max_x,
+    lag_guess = map2_dbl(.x = map(data, `[[`, c("ehours")), .y = map(data, `[[`, c("Areamm2")), ~(.x[which.min(.y)])),
+    fit = pmap(list(data, max_y, mu_guess, lag_guess), possibly(~nlsLM(lnAreaNorm ~ mod_gomp_lag_eqn(x = ehours, Amax, Amu, Lag), data = ..1, start = c(Amax = ..2, Amu = ..3, Lag = ..4), lower = c(Amax = 0, Amu = 0, Lag =0)), otherwise = NULL)),
+    predict = map(fit, possibly(augment, otherwise = NULL)),
+    tidied =  map(fit, possibly(tidy, otherwise = NULL)),
+    param = map(fit,possibly(glance, otherwise = NULL))
+    )
+
+Class_modgompertzlag %>% 
+  unnest(predict) %>%
+  ggplot() +  
+  geom_point(aes(x = ehours, y = lnAreaNorm), colour = "green") +
+  geom_line(aes(x = ehours, y = .fitted), size = 0.5) +
+  geom_line(aes(x = ehours, y = .resid, alpha = 0.1), linetype = "dashed", colour = "red", show.legend = FALSE) +
+  facet_grid(cols = vars(Substrate), rows = vars(Treatment)) +
+  theme_bw() +
+  labs(y = ".fitted Areamm^2",
+       title = "Colony Growth, Modified Gompertz with Lag",
+       caption = "Modified Gompertz with Lag, residuals dashed red line")
+
+#parameters of colony specific logistic fits
+Class_modgompertzlag %>%
+  unnest(tidied) %>%
+  select(-c(data, fit, predict, param)) %>%
+  mutate_if(is.numeric, round, digits = 2)
+
+
 ```
 
 
