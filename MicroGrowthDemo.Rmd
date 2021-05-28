@@ -1,4 +1,4 @@
----
+--
 title: "MicroGrowthDemo"
 author: "Douglas A. Campbell, Maximilian Berthold"
 date: "`r format(Sys.Date())`"
@@ -304,7 +304,7 @@ Add representative images to your .Rmd.
 Will work with .jpg and .png; not sure about other graphic formats.
 May not succeed embedding image to .md file.
 ```{r examplecolonies, fig.align = 'centre', out.width='50%', out.height='70%'}
-knitr::include_graphics(file.path("202101240946.jpg"))
+knitr::include_graphics(file.path("Figs/202101240946.PNG"))
 ```
 
 
