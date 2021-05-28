@@ -1,7 +1,7 @@
 ---
 title: "MicroGrowthDemo"
 author: "Douglas A. Campbell, Maximilian Berthold"
-date: "2021-05-27"
+date: "2021-05-28"
 output:
   html_document: 
     code_folding: hide
@@ -336,10 +336,10 @@ Will work with .jpg and .png; not sure about other graphic formats.
 May not succeed embedding image to .md file.
 
 ```r
-knitr::include_graphics(file.path("202101240946.jpg"))
+knitr::include_graphics(file.path("Figs/202101240946.PNG"))
 ```
 
-<img src="202101240946.jpg" width="50%" height="70%" />
+<img src="Figs/202101240946.PNG" width="50%" height="70%" />
 
 
 ## Example of Mould Colony on Naan, 202101240946.jpg
@@ -415,9 +415,9 @@ MyData_nest <- as_tibble(MyData) %>%
 
 ## Fit and plot treatment colony specific linear growth trajectories using nest purrr:map & broom::augment
 This chunk uses code from the 'Tidyverse' purrr package.
-R will iteratively vary the parameters of the fitting equations to minimize the residuals (discrepancies) between the data points in a given nested and the points predicted by the model with a given set of parameters.
+R will iteratively vary the parameters of the fitting equations to minimize the residuals (discrepancies) between the data points in a given nest and the points predicted by the model with a given set of parameters.
 If that fails, R returns a 'null' result for the fit for the given nest, and proceeds to attempt the next nest of data.
-The nlsLM fitting function requires a 'list' of 'start' values for each fitted parameter.
+The nlsLM fitting function requires a vector of 'start' values for each fitted parameter.
 nlsLM optionally accepts vectors of 'lower' and 'upper' boundary values for each fitted parameter.
 Avoid using 'lower' and 'upper' boundaries when feasible, because they can lead to erroneous fits when the fitting iterations hit a boundary for a fitted parameter and then sit there.
 Sometimes with noisy data, setting 'lower' and 'upper' boundaries can help constrain the fit.

@@ -1,4 +1,4 @@
---
+---
 title: "MicroGrowthDemo"
 author: "Douglas A. Campbell, Maximilian Berthold"
 date: "`r format(Sys.Date())`"
